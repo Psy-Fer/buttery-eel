@@ -1,0 +1,2 @@
+pyslow5==0.5.0
+ont-pyguppy-client-lib==6.1.3

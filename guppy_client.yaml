@@ -1,0 +1,67 @@
+# client_name (str):                    A name for the client, which will appear in server log entries.
+# query_timeout (int):                  Milliseconds to wait for a server response before timing out. Default is 2000ms.
+# server_file_load_timeout (int):       Seconds to wait for files to be loaded on the server. Default is 180s.
+# pass_read_timeout (int):              Default value to use if the optional pass_read parameter wait_duration_ms is not supplied. The default value for this is zero, which if applied means pass_read will be non-blocking.
+# connection_timeout (int):             Milliseconds to wait for a server connection attempt. Default is 15000ms.
+# reconnect_timeout (int):              Seconds to wait for the client to reconnect to the server if the connection is broken. Default is 300s.
+# max_message_size (int):               Size of blocks to be sent to the server, in samples. Default is 50000.
+# max_reads_queued (int):               Maximum number of reads to queue for sending to the server. Default is 20.
+# priority (ReadPriority):              Priority of the client (low, medium, or high). Default is medium.
+# move_and_trace_enabled (bool):        Flag indicating whether to return trace and move data. Default is True.
+# post_out (bool):                      Flag indicating whether to return full posterior state data. Default is False.
+# barcode_kits (list):                  Strings naming each barcode kit to use. Default is to not do barcoding.
+# lamp_kit (str):                       String naming LAMP barcode kit to use. Default is to not do LAMP barcoding.
+# require_barcodes_both_ends (bool):    Flag indicating that barcodes must be at both ends. Default is False.
+# detect_mid_strand_barcodes (bool):    Flag indicating that read will be marked as unclassified if barcodes appear within the strand itself. Default is False.
+# detect_mid_strand_adapter (bool):     Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.
+# min_score_barcode_front (float):      Minimum score for a front barcode to be classified. Default is 60.
+# min_score_barcode_rear (float):       Minimum score for a rear barcode to be classified. Default is to use the front minimum.
+# min_score_barcode_mid (float):        Minimum score for mid barcodes to be detected. Default is 50.
+# detect_adapter (bool):                Enable detection of adapters at the front and rear of the sequence.
+# detect_primer (bool):                 Enable detection of primers at the front and rear of the sequence.
+# min_score_adapter (float):            Minimum score for a front or rear adapter to be classified. Default is 60.
+# min_score_primer (float):             Minimum score for a front or rear primer to be classified. Default is 60.
+# trim_barcodes (bool):                 Flag indicating that barcodes should be trimmed. Default is False.
+# trim_adapters (bool):                 Flag indicating that adapters should be trimmed. Default is False.
+# trim_primers (bool):                  Flag indicating that primers should be trimmed. Default is False.
+# align_ref (str):                      Filename of index file to use for alignment (if any). Default is to not align.
+# bed_file (str):                       Filename of BED file to use for alignment (if any). Default is to not align.
+# align_type (str):                     Type of alignment requested. Valid values are "auto", "coarse", and "full". Default is "auto".
+# min_score_lamp (float):               Minimum score for a LAMP barcode to be detected. Default is 80.
+# min_score_lamp_mask (float):          Minimum score for a LAMP barcode mask to be detected. Default is 50.
+# min_score_lamp_target (float):        Minimum score for a LAMP target to be detected. Default is 50.
+# additional_lamp_context_bases (int):  Number of additional bases from context to include in lamp barcode comparison. Default is 2.
+
+client_name: butter-eel-client_1
+query_timeout: 2000
+server_file_load_timeout: 180
+pass_read_timeout: 0
+connection_timeout: 1500
+reconnect_timeout: 300
+max_message_size: 50000
+max_reads_queued: 20
+priority: medium
+move_and_trace_enabled: True
+post_out: False
+# barcode_kits:
+# lamp_kit:
+require_barcodes_both_ends: False
+detect_mid_strand_barcodes: False
+detect_mid_strand_adapter: False
+min_score_barcode_front: 60
+min_score_barcode_rear: 60
+min_score_barcode_mid: 50
+# detect_adapter:
+# detect_primer:
+min_score_adapter: 60
+min_score_primer: 60
+trim_barcodes: False
+trim_adapters: False
+trim_primers: False
+# align_ref:
+# bed_file:
+# align_type: "auto"
+min_score_lamp: 80
+min_score_lamp_mask: 50
+min_score_lamp_target: 50
+additional_lamp_context_bases: 2

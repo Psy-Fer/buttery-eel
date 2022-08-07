@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import sys
 import os
 import time
 from pathlib import Path
 import numpy as np
+from yaml import load
 
 import pyslow5
 
 from pyguppy_client_lib.pyclient import PyGuppyClient
 from pyguppy_client_lib import helper_functions
 
-# import json
 
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
@@ -22,19 +21,20 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-
-def start_guppy_server(log, config, port, guppy_bin, max_queued_reads, chunk_size):
+def start_guppy_server(args):
     """
     Start guppy server in separate process
     """
-    server_args = ["--log_path", log,
-                   "--config", config,
-                   "--port", port,
+    server_args = ["--log_path", args.log,
+                   "--config", args.config,
+                   "--port", args.port,
                    "--use_tcp",
-                   "-x", "auto",
-                   "--max_queued_reads", max_queued_reads,
-                   "--chunk_size", chunk_size]
-    ret = helper_functions.run_server(server_args, bin_path=guppy_bin)
+                   "-x", args.device,
+                   "--max_queued_reads", args.max_queued_reads,
+                   "--chunk_size", args.chunk_size]
+    # for i in guppy_server_args:
+    #     server_args.append(i)
+    ret = helper_functions.run_server(server_args, bin_path=args.guppy_bin)
     return ret
 
 
@@ -55,6 +55,31 @@ def write_fastq(fq, header, seq, qscore):
     fq.write("+\n")
     fq.write("{}\n".format(qscore))
 
+
+def get_reads(client, fq, read_counter):
+    done = 0
+    while done < read_counter:
+        bcalled = client.get_completed_reads()
+        if not bcalled:
+            time.sleep(0.5)
+            continue
+        else:
+            for call in bcalled:
+                done += 1
+                if len(call) != 1:
+                    # possible split reads?
+                    sys.stderr.write("Call is longer than 1: {}\n".format(len(call)))
+
+
+                # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
+                # model_version_id = get_model_info(args.config, args.guppy_bin)
+                header = "@{} model_version_id={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'])
+                sequence = call[0]['datasets']['sequence']
+                qscore = call[0]['datasets']['qstring']
+                write_fastq(fq, header, sequence, qscore)
+    done = 0
+
+# How we get data out of the model files if they are not provided by the metadata output
 
 # def get_model_info(config, guppy_bin):
 #     config = os.path.join(guppy_bin,"../data/", config)
@@ -83,15 +108,23 @@ def write_fastq(fq, header, seq, qscore):
 
 def main():
 
+    # ==========================================================================
+    # Software ARGS
+    # ==========================================================================
+    """
+    Example:
+    ./buttery-eel.py --guppy_bin /home/jamfer/Downloads/ont-guppy-6.1.3/bin \
+    --max_queued_reads 1000 --port 5558 -x "auto" \
+    -i ~/Data/bench/1_slow5/PAF25452_pass_bfdfd1d8_11.blow5 \
+    -o ~/Data/bench/buttery_test/test.fastq
+    """
+
     VERSION = "v0.0.1"
 
     parser = MyParser(description="buttery-eel - wrapping guppy for file agnostic basecalling",
-    epilog="Citation:...")
+    epilog="Citation:...",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    """
-    Example:
-    ./buttery-eel.py --guppy_bin /home/jamfer/Downloads/ont-guppy-6.1.3/bin --chunk_size 200 --max_queued_reads 1000 --port 5558 -i ~/Data/bench/1_slow5/PAF25452_pass_bfdfd1d8_11.blow5 -o ~/Data/bench/buttery_test/test.fastq
-    """
 
     # Args for the wrapper, and then probably best to just have free form args for guppy
     parser.add_argument("-i", "--input",
@@ -110,10 +143,16 @@ def main():
                         help="Number of reads to send to guppy server queue")
     parser.add_argument("--chunk_size", default="2000",
                         help="signal chunk size, lower this for lower VRAM GPUs")
+    parser.add_argument("-x", "--device",
+                        help="Specify GPU device: 'auto', or 'cuda:<device_id>'")
+    # parser.add_argument("--guppy_server_args",
+    #                     help="config file containing any extra args to set on guppy_basecall_server")
+    # parser.add_argument("--guppy_client_args",
+    #                     help="config file containing any extra args to set on guppy_basecall_client")
     parser.add_argument("-v", "--version", action='version', version="buttery-eel - wraping guppy for file agnostic basecalling version: {}".format(VERSION),
                         help="Prints version")
-    parser.add_argument("--debug", action="store_true",
-                        help="Set logging to debug mode")
+    # parser.add_argument("--debug", action="store_true",
+    #                     help="Set logging to debug mode")
 
     args = parser.parse_args()
 
@@ -121,47 +160,75 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    # turn on debug mode
-    logger = logging.getLogger(__name__)
-    if args.debug == 1:
-        lev = logging.DEBUG
-    else:
-        lev = logging.WARNING
+    sys.stderr.write("\n")
+    sys.stderr.write("               ~  buttery-eel - SLOW5 Guppy Basecalling  ~\n")
+    sys.stderr.write("==========================================================================\n  ARGS\n==========================================================================\n")
+    sys.stderr.write("args:\n {}\n".format(args))
 
-    logging.basicConfig(format='%(asctime)s - [%(levelname)s]: %(message)s',
-                        datefmt='%d-%b-%y %H:%M:%S', level=lev)
+    # guppy_server_args = None
+    # guppy_client_args = None
 
-    logger.info("args: {}".format(args))
+    # if args.guppy_server_args:
+    #     with open(args.guppy_server_args) as f:
+    #         guppy_server_args = yaml.safe_load(f)
+    #
+    # if args.guppy_client_args:
+    #     with open(args.guppy_client_args) as f:
+    #         guppy_client_args = yaml.safe_load(f)
 
-    logger.debug("starting: guppy_basecall_server")
-    serv = start_guppy_server(args.log, args.config, args.port, args.guppy_bin, args.max_queued_reads, args.chunk_size)
-    print(serv)
+    # ==========================================================================
+    # Start guppy_basecall_server
+    # ==========================================================================
+    sys.stderr.write("\n\n")
+    sys.stderr.write("==========================================================================\n  Starting Guppy Basecalling Server\n==========================================================================\n")
+    serv = start_guppy_server(args)
     server = serv[0]
     p = serv[1]
-    logger.debug("guppy_basecall_server started...")
+    sys.stderr.write("guppy_basecall_server started...\n")
+    sys.stderr.write("\n")
 
-    logger.debug("Connecting to server with client...")
+
+    # ==========================================================================
+    # Connect to server with guppy_basecall_client
+    # ==========================================================================
+
+    # TODO: add guppy_client_args
+    sys.stderr.write("==========================================================================\n  Connecting to server\n==========================================================================\n")
     client = PyGuppyClient(
     "127.0.0.1:{}".format(args.port),
     "{}".format(args.config))
 
-    logger.debug("Setting params...")
+    sys.stderr.write("Setting params...\n")
     client.set_params({"priority": PyGuppyClient.high_priority})
 
-    logger.debug("Connecting...")
+    sys.stderr.write("Connecting...\n")
     client.connect()
-    logger.debug("Connected, testing connection...")
-    logger.debug("Connection status:")
+    sys.stderr.write("Connected, testing connection...\n")
+    sys.stderr.write("Connection status:\n")
     print(client.get_status())
-
     # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
     # print(client.get_protocol_version())
     # print(client.get_server_information("127.0.0.1:{}".format(args.port), 10))
     # print(client.get_software_version())
 
+    sys.stderr.write("\n")
+
+    # ==========================================================================
+    # Read signal file
+    # ==========================================================================
+    sys.stderr.write("==========================================================================\n  Files\n==========================================================================\n")
+    sys.stderr.write("Reading from: {}\n".format(args.input))
+    sys.stderr.write("Writing to: {}\n".format(args.output))
     fq = open(args.output, 'w')
     s5 = pyslow5.Open(args.input, 'r')
     reads = s5.seq_reads()
+    sys.stderr.write("\n")
+
+    # ==========================================================================
+    # Process reads and send to basecall server
+    # ==========================================================================
+    sys.stderr.write("==========================================================================\n  Basecalling\n==========================================================================\n")
+    sys.stderr.write("\n")
 
     get_raw = True
     total_reads = 0
@@ -169,7 +236,7 @@ def main():
     done = 0
     skipped = []
     for read in reads:
-        # sys.exit()
+
         read_id = read['read_id']
         # calculate scale
         scale = calibration(read['digitisation'], read['range'])
@@ -189,7 +256,7 @@ def main():
             tries += 1
             if tries >= 5:
                 if not result:
-                    logging.warning("Skipped a read: {}".format(read_id))
+                    sys.stderr.write("Skipped a read: {}\n".format(read_id))
                     skipped.append(read_id)
                     break
 
@@ -201,59 +268,38 @@ def main():
             total_reads += 1
 
         if read_counter >= 1000:
-            while done < read_counter:
-                bcalled = client.get_completed_reads()
-                if not bcalled:
-                    time.sleep(0.5)
-                    continue
-                else:
-                    for call in bcalled:
-                        done += 1
-                        if len(call) != 1:
-                            # possible split reads?
-                            logging.warning("Call is longer than 1: {}".format(len(call)))
-
-
-                        # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
-                        # model_version_id = get_model_info(args.config, args.guppy_bin)
-                        header = "@{} model_version_id={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'])
-                        sequence = call[0]['datasets']['sequence']
-                        qscore = call[0]['datasets']['qstring']
-                        write_fastq(fq, header, sequence, qscore)
-            done = 0
+            get_reads(client, fq, read_counter)
             read_counter = 0
+        sys.stderr.write("\rprocessed reads: %d" % total_reads)
+        sys.stderr.flush()
 
+    # collect any last leftover reads
     if read_counter > 0:
-        while done < read_counter:
-            bcalled = client.get_completed_reads()
-            if not bcalled:
-                time.sleep(0.5)
-                continue
-            else:
-                for call in bcalled:
-                    done += 1
-                    if len(call) != 1:
-                        # possible split reads?
-                        logging.warning("Call is longer than 1: {}".format(len(call)))
-
-                    # model_version_id = get_model_info(args.config, args.guppy_bin)
-                    header = "@{} model_version_id={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'])
-                    sequence = call[0]['datasets']['sequence']
-                    qscore = call[0]['datasets']['qstring']
-                    write_fastq(fq, header, sequence, qscore)
-        done = 0
+        get_reads(client, fq, read_counter)
         read_counter = 0
 
+    sys.stderr.write("\n\n")
+    sys.stderr.write("Basecalling complete!\n\n")
 
-    print("Processed {} reads".format(total_reads))
-    print("skipped {} reads".format(len(skipped)))
+    # ==========================================================================
+    # Finish up, close files, disconnect client and terminate server
+    # ==========================================================================
+    sys.stderr.write("\n")
+    sys.stderr.write("==========================================================================\n  Summary\n==========================================================================\n")
+    sys.stderr.write("Processed {} reads\n".format(total_reads))
+    sys.stderr.write("skipped {} reads\n".format(len(skipped)))
+    sys.stderr.write("\n")
     # close file
     fq.close()
     s5.close()
 
+    sys.stderr.write("==========================================================================\n  Cleanup\n==========================================================================\n")
     # terminate guppy_basecall_server
+    sys.stderr.write("Disconnecting client\n")
     client.disconnect()
+    sys.stderr.write("Disconnecting server\n")
     server.terminate()
+    sys.stderr.write("Done\n")
 
 
 if __name__ == '__main__':

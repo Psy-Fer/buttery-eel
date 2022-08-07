@@ -26,7 +26,11 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
     python3 -m venv venv3
     source ./venv3/bin/activate
     pip install --upgrade pip
-    pip install pyslow5==0.5.0 ont-pyguppy-client-lib==${GUPPY_VERSION}
+    pip install pyyaml pyslow5==0.5.0 ont-pyguppy-client-lib==${GUPPY_VERSION}
+
+    # or with a requirements file
+
+    pip install -r requirements.txt
 
 
 Set up flags needed and run

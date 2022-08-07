@@ -22,6 +22,7 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
 
     GUPPY_VERSION=6.1.3
     git clone https://github.com/Psy-Fer/buttery-eel.git
+    cd butter-eel
     python3 -m venv venv3
     source ./venv3/bin/activate
     pip install --upgrade pip

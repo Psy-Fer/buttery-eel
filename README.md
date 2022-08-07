@@ -33,6 +33,9 @@ Set up flags needed and run
 
     ./buttery-eel.py --guppy_bin ont-guppy-6.1.3/bin --port 5558 -i ~/Data/bench/1_slow5/PAF25452_pass_bfdfd1d8_11.blow5 -o ~/Data/bench/buttery_test/test.fastq
 
+
+the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`
+
 # Info
 
 ONT have 4 basecallers.

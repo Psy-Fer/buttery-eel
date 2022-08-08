@@ -16,10 +16,6 @@ from pyguppy_client_lib import helper_functions
 from ._version import __version__
 
 
-total_guppy_poll_time = 0
-total_fastq_write_time = 0
-total_slow5_read_time = 0
-
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
         sys.stderr.write('error: %s\n' % message)
@@ -56,13 +52,10 @@ def calibration(digitisation, range):
 
 
 def write_fastq(fq, header, seq, qscore):
-    global total_fastq_write_time
-    t0 = time.time()
     fq.write("{}\n".format(header))
     fq.write("{}\n".format(seq))
     fq.write("+\n")
     fq.write("{}\n".format(qscore))
-    total_fastq_write_time = total_fastq_write_time + (time.time()-t0)
 
 
 def get_reads(client, fq, read_counter):
@@ -116,7 +109,7 @@ def get_reads(client, fq, read_counter):
 
 
 def main():
-    tt = time.time()
+    # tt = time.time()
     # ==========================================================================
     # Software ARGS
     # ==========================================================================
@@ -188,8 +181,8 @@ def main():
     # ==========================================================================
     # Start guppy_basecall_server
     # ==========================================================================
-    total_start_server_time = 0
-    sst = time.time()
+    # total_start_server_time = 0
+    # sst = time.time()
     sys.stderr.write("\n\n")
     sys.stderr.write("==========================================================================\n  Starting Guppy Basecalling Server\n==========================================================================\n")
     serv = start_guppy_server(args)
@@ -197,7 +190,7 @@ def main():
     p = serv[1]
     sys.stderr.write("guppy_basecall_server started...\n")
     sys.stderr.write("\n")
-    total_start_server_time = total_start_server_time + (time.time() - sst)
+    # total_start_server_time = total_start_server_time + (time.time() - sst)
 
 
     # ==========================================================================
@@ -205,8 +198,8 @@ def main():
     # ==========================================================================
 
     # TODO: add guppy_client_args
-    total_client_connect_time = 0
-    sst = time.time()
+    # total_client_connect_time = 0
+    # sst = time.time()
     sys.stderr.write("==========================================================================\n  Connecting to server\n==========================================================================\n")
     client = PyGuppyClient(
     "127.0.0.1:{}".format(args.port),
@@ -224,7 +217,7 @@ def main():
     # print(client.get_protocol_version())
     # print(client.get_server_information("127.0.0.1:{}".format(args.port), 10))
     # print(client.get_software_version())
-    total_client_connect_time = total_client_connect_time + (time.time() - sst)
+    # total_client_connect_time = total_client_connect_time + (time.time() - sst)
 
     sys.stderr.write("\n")
 
@@ -236,7 +229,7 @@ def main():
     sys.stderr.write("Writing to: {}\n".format(args.output))
     fq = open(args.output, 'w')
     s5 = pyslow5.Open(args.input, 'r')
-    reads = s5.seq_reads_multi(threads=16, batchsize=int(args.max_queued_reads)*2)
+    reads = s5.seq_reads()
     sys.stderr.write("\n")
 
     # ==========================================================================
@@ -245,16 +238,16 @@ def main():
     sys.stderr.write("==========================================================================\n  Basecalling\n==========================================================================\n")
     sys.stderr.write("\n")
 
-    up_to_before_read_processing = (time.time() - tt)
+    # up_to_before_read_processing = (time.time() - tt)
 
-    pt = time.time()
+    # pt = time.time()
     get_raw = True
     total_reads = 0
     read_counter = 0
     done = 0
     skipped = []
-    total_slow5_read_time = 0
-    total_guppy_poll_time = 0
+    # total_slow5_read_time = 0
+    # total_guppy_poll_time = 0
     for read in reads:
         t0 = time.time()
         read_id = read['read_id']
@@ -286,20 +279,20 @@ def main():
         else:
             read_counter += 1
             total_reads += 1
-        total_slow5_read_time = total_slow5_read_time + (time.time() - t0)
+        # total_slow5_read_time = total_slow5_read_time + (time.time() - t0)
         if read_counter >= 1000:
-            gp = time.time()
+            # gp = time.time()
             get_reads(client, fq, read_counter)
-            total_guppy_poll_time = total_guppy_poll_time + (time.time()-gp)
+            # total_guppy_poll_time = total_guppy_poll_time + (time.time()-gp)
             read_counter = 0
         sys.stderr.write("\rprocessed reads: %d" % total_reads)
         sys.stderr.flush()
 
     # collect any last leftover reads
     if read_counter > 0:
-        gp = time.time()
+        # gp = time.time()
         get_reads(client, fq, read_counter)
-        total_guppy_poll_time = total_guppy_poll_time + (time.time()-gp)
+        # total_guppy_poll_time = total_guppy_poll_time + (time.time()-gp)
         read_counter = 0
 
     sys.stderr.write("\n\n")
@@ -325,16 +318,16 @@ def main():
     server.terminate()
     sys.stderr.write("Done\n")
 
-    sys.stderr.write("\n")
-    sys.stderr.write("DEBUG: Timing info:\n")
-    sys.stderr.write("total_start_server_time: {}s\n".format(total_start_server_time))
-    sys.stderr.write("total_client_connect_time: {}s\n".format(total_client_connect_time))
-    sys.stderr.write("total_guppy_poll_time: {}s\n".format(total_guppy_poll_time))
-    sys.stderr.write("total_fastq_write_time: {}s\n".format(total_fastq_write_time))
-    sys.stderr.write("total_slow5_read_time: {}s\n".format(total_slow5_read_time))
-    sys.stderr.write("up_to_before_read_processing: {}s\n".format(up_to_before_read_processing))
-    sys.stderr.write("processing_section: {}s\n".format(time.time() - pt))
-    sys.stderr.write("Total script time: {}s\n".format(time.time() - tt))
+    # sys.stderr.write("\n")
+    # sys.stderr.write("DEBUG: Timing info:\n")
+    # sys.stderr.write("total_start_server_time: {}s\n".format(total_start_server_time))
+    # sys.stderr.write("total_client_connect_time: {}s\n".format(total_client_connect_time))
+    # sys.stderr.write("total_guppy_poll_time: {}s\n".format(total_guppy_poll_time))
+    # sys.stderr.write("total_fastq_write_time: {}s\n".format(total_fastq_write_time))
+    # sys.stderr.write("total_slow5_read_time: {}s\n".format(total_slow5_read_time))
+    # sys.stderr.write("up_to_before_read_processing: {}s\n".format(up_to_before_read_processing))
+    # sys.stderr.write("processing_section: {}s\n".format(time.time() - pt))
+    # sys.stderr.write("Total script time: {}s\n".format(time.time() - tt))
 
 
 

@@ -236,7 +236,7 @@ def main():
     sys.stderr.write("Writing to: {}\n".format(args.output))
     fq = open(args.output, 'w')
     s5 = pyslow5.Open(args.input, 'r')
-    reads = s5.seq_reads_multi(threads=16, batchsize=int(args.max_queued_reads))
+    reads = s5.seq_reads_multi(threads=16, batchsize=int(args.max_queued_reads)*2)
     sys.stderr.write("\n")
 
     # ==========================================================================

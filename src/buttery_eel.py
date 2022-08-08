@@ -155,7 +155,7 @@ def main():
                         help="Number of reads to send to guppy server queue")
     parser.add_argument("--chunk_size", default="2000",
                         help="signal chunk size, lower this for lower VRAM GPUs")
-    parser.add_argument("-x", "--device", default='"auto"'
+    parser.add_argument("-x", "--device", default='"auto"',
                         help="Specify GPU device: 'auto', or 'cuda:<device_id>'")
     # parser.add_argument("--guppy_server_args",
     #                     help="config file containing any extra args to set on guppy_basecall_server")

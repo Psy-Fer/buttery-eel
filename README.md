@@ -20,22 +20,23 @@ Download: https://community.nanoporetech.com/downloads
 
 The `guppy` and `ont-pyguppy-client-lib` versions need to match
 
-    GUPPY_VERSION=6.1.3
+    # if GUPPY_VERSION=6.1.3
+    # modify requirements.txt to have:
+    #   ont-pyguppy-client-lib==6.1.3
+
+
     git clone https://github.com/Psy-Fer/buttery-eel.git
-    cd butter-eel
+    cd buttery-eel
     python3 -m venv venv3
     source ./venv3/bin/activate
     pip install --upgrade pip
-    pip install pyyaml pyslow5==0.5.0 ont-pyguppy-client-lib==${GUPPY_VERSION}
-
-    # or with a requirements file
-
-    pip install -r requirements.txt
+    pip install --upgrade setuptools wheel
+    python setup.py install
 
 
 Set up flags needed and run
 
-    ./buttery-eel.py --guppy_bin ont-guppy-6.1.3/bin --port 5558 -x "auto" -i ~/Data/bench/1_slow5/PAF25452_pass_bfdfd1d8_11.blow5 -o ~/Data/bench/buttery_test/test.fastq
+    buttery-eel --guppy_bin ont-guppy-6.1.3/bin --port 5558 -x "auto" -i ~/Data/bench/1_slow5/PAF25452_pass_bfdfd1d8_11.blow5 -o ~/Data/bench/buttery_test/test.fastq
 
 
 the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`

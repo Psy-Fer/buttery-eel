@@ -33,6 +33,8 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
     pip install --upgrade setuptools wheel
     python setup.py install
 
+    buttery-eel --help
+
 
 Set up flags needed and run
 

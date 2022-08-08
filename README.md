@@ -1,13 +1,10 @@
 # buttery-eel
+
 The buttery eel - A slow5 guppy basecaller wrapper
 
-`buttery-eel` is a wrapper for `guppy`. It allows us to read `SLOW5` files, and send that data to `guppy` to basecall.
+`buttery-eel` is a wrapper for `guppy`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`](https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/) to work.
 
-It requires matching versions of `guppy` and `ont-pyguppy-client-lib` to work.
-
-You can download guppy here: https://community.nanoporetech.com/downloads
-
-An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
+You can download guppy here: https://community.nanoporetech.com/downloads. An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
 
 
 # Quick start
@@ -76,10 +73,10 @@ I will fix this eventually, but for now, here is how you check for the server an
 # Info
 
 ONT have 4 basecallers.
-    - `Albacore` (archived)
-    - `Guppy`    (current - production)
-    - `Bonito`   (research)
-    - `Dorado`   (preview - future production)
+- `Albacore` (archived)
+- `Guppy`    (current - production)
+- `Bonito`   (research)
+- `Dorado`   (preview - future production)
 
 `Albacore` (not used anymore) and `Guppy` are closed source software, and researchers are required to sign a developer agreement to gain access to the source code. Any changes made by the researchers can't share that modified software, and there are a number of restrictions in place that are too boring to talk about.
 
@@ -98,18 +95,14 @@ The best thing about this, is all of the libraries and code is open, and so we c
 
 # Acknowledgments
 
-Firstly, whoever maintains and develops the `ont-pyguppy-client-lib` at ONT, thank you. This library gives the minimum required to make this relatively easy to implement.
-
-Hasindu Gamaarachchi for having the idea to do this, and for the issue posted on the slow5tools repo by SziKayLeung
-
-My partner Hilary for coming up with the name.
-
-Matt Loose and Alexander Payne for having the basics of this all along in your readfish code and being awesome in general
-
-Lastly, I'd like to say i'm a little surprised this wasn't suggested to us by the devs at ONT when they were rejecting our pull requests on Guppy, Bonito, and Dorado. Oh well.
+- Firstly, whoever maintains and develops the `ont-pyguppy-client-lib` at ONT, thank you. This library gives the minimum required to make this relatively easy to implement.
+- Hasindu Gamaarachchi for having the idea to do this, and for the issue posted on the slow5tools repo by SziKayLeung
+- My partner Hilary for coming up with the name.
+- Matt Loose and Alexander Payne for having the basics of this all along in your readfish code and being awesome in general
+- Lastly, I'd like to say i'm a little surprised this wasn't suggested to us by the devs at ONT when they were rejecting our pull requests on Guppy, Bonito, and Dorado. Oh well.
 
 # Software used
-- slow5lib
-- ONT guppy
-- ONT ont-pyguppy-client-lib https://pypi.org/project/ont-pyguppy-client-lib/6.2.1/
-- basecaller code and flow mostly follows the methods used here: https://github.com/LooseLab/readfish/blob/23dd37117bce576b99caf097e7711dc87d30fa0a/ru/basecall.py by Matt Loose and Alexander Payne
+- [slow5lib/pyslow5](https://github.com/hasindu2008/slow5lib)
+- [ONT guppy]()
+- [ONT ont-pyguppy-client-lib](https://pypi.org/project/ont-pyguppy-client-lib/6.2.1/)
+- basecaller code and flow mostly follows the methods used in [readfish](https://github.com/LooseLab/readfish/blob/23dd37117bce576b99caf097e7711dc87d30fa0a/ru/basecall.py) by Matt Loose and Alexander Payne

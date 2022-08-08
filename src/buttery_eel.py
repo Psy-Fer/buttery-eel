@@ -139,13 +139,13 @@ def main():
 
 
     # Args for the wrapper, and then probably best to just have free form args for guppy
-    parser.add_argument("-i", "--input",
+    parser.add_argument("-i", "--input", required=True,
                         help="input blow5 file for basecalling")
-    parser.add_argument("-o", "--output",
+    parser.add_argument("-o", "--output", required=True,
                         help="output .fastq file to write")
-    parser.add_argument("--guppy_bin", type=Path,
+    parser.add_argument("--guppy_bin", type=Path, required=True,
                         help="path to ont_guppy/bin folder")
-    parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg",
+    parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                         help="basecalling model config")
     parser.add_argument("--port", default="5558",
                         help="port to use between server/client")
@@ -191,6 +191,8 @@ def main():
     # ==========================================================================
     # Start guppy_basecall_server
     # ==========================================================================
+    total_start_server_time = 0
+    sst = time.time()
     sys.stderr.write("\n\n")
     sys.stderr.write("==========================================================================\n  Starting Guppy Basecalling Server\n==========================================================================\n")
     serv = start_guppy_server(args)
@@ -198,6 +200,7 @@ def main():
     p = serv[1]
     sys.stderr.write("guppy_basecall_server started...\n")
     sys.stderr.write("\n")
+    total_start_server_time = total_start_server_time + (time.time() - sst)
 
 
     # ==========================================================================
@@ -205,6 +208,8 @@ def main():
     # ==========================================================================
 
     # TODO: add guppy_client_args
+    total_client_connect_time = 0
+    sst = time.time()
     sys.stderr.write("==========================================================================\n  Connecting to server\n==========================================================================\n")
     client = PyGuppyClient(
     "127.0.0.1:{}".format(args.port),
@@ -222,6 +227,7 @@ def main():
     # print(client.get_protocol_version())
     # print(client.get_server_information("127.0.0.1:{}".format(args.port), 10))
     # print(client.get_software_version())
+    total_client_connect_time = total_client_connect_time + (time.time() - sst)
 
     sys.stderr.write("\n")
 
@@ -316,6 +322,8 @@ def main():
 
     sys.stderr.write("\n")
     sys.stderr.write("DEBUG: Timing info:\n")
+    sys.stderr.write("total_start_server_time: {}s\n".format(total_start_server_time))
+    sys.stderr.write("total_client_connect_time: {}s\n".format(total_client_connect_time))
     sys.stderr.write("total_guppy_poll_time: {}s\n".format(total_guppy_poll_time))
     sys.stderr.write("total_fastq_write_time: {}s\n".format(total_fastq_write_time))
     sys.stderr.write("total_slow5_read_time: {}s\n".format(total_slow5_read_time))

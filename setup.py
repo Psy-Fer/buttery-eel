@@ -29,8 +29,9 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
-    install_requires=install_requires,
     python_requires=">=3.6",
+    install_requires=install_requires,
+    setup_requires=["numpy"],
     entry_points={"console_scripts":["buttery-eel=src.buttery_eel:main"],},
     classifiers=[
         "Programming Language :: Python :: 3",

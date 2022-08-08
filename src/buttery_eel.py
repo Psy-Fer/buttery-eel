@@ -248,6 +248,8 @@ def main():
     sys.stderr.write("==========================================================================\n  Basecalling\n==========================================================================\n")
     sys.stderr.write("\n")
 
+    up_to_before_read_processing = (time.time() - tt)
+
     get_raw = True
     total_reads = 0
     read_counter = 0
@@ -327,6 +329,7 @@ def main():
     sys.stderr.write("total_guppy_poll_time: {}s\n".format(total_guppy_poll_time))
     sys.stderr.write("total_fastq_write_time: {}s\n".format(total_fastq_write_time))
     sys.stderr.write("total_slow5_read_time: {}s\n".format(total_slow5_read_time))
+    sys.stderr.write("up_to_before_read_processing: {}s\n".format(up_to_before_read_processing))
     sys.stderr.write("Total script time: {}s\n".format(time.time() - tt))
 
 

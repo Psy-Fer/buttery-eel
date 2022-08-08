@@ -13,6 +13,12 @@ import pyslow5
 from pyguppy_client_lib.pyclient import PyGuppyClient
 from pyguppy_client_lib import helper_functions
 
+from ._version import __version__
+
+
+total_guppy_poll_time = 0
+total_fastq_write_time = 0
+total_slow5_read_time = 0
 
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
@@ -50,13 +56,18 @@ def calibration(digitisation, range):
 
 
 def write_fastq(fq, header, seq, qscore):
+    global total_fastq_write_time
+    t0 = time.time()
     fq.write("{}\n".format(header))
     fq.write("{}\n".format(seq))
     fq.write("+\n")
     fq.write("{}\n".format(qscore))
+    total_fastq_write_time = total_fastq_write_time + (time.time()-t0)
 
 
 def get_reads(client, fq, read_counter):
+    global total_guppy_poll_time
+    t0 = time.time()
     done = 0
     while done < read_counter:
         bcalled = client.get_completed_reads()
@@ -78,6 +89,7 @@ def get_reads(client, fq, read_counter):
                 qscore = call[0]['datasets']['qstring']
                 write_fastq(fq, header, sequence, qscore)
     done = 0
+    total_guppy_poll_time = total_guppy_poll_time + (time.time()-t0)
 
 # How we get data out of the model files if they are not provided by the metadata output
 
@@ -119,7 +131,7 @@ def main():
     -o ~/Data/bench/buttery_test/test.fastq
     """
 
-    VERSION = "v0.0.1"
+    VERSION = __version__
 
     parser = MyParser(description="buttery-eel - wrapping guppy for file agnostic basecalling",
     epilog="Citation:...",
@@ -235,8 +247,9 @@ def main():
     read_counter = 0
     done = 0
     skipped = []
+    global total_slow5_read_time
     for read in reads:
-
+        t0 = time.time()
         read_id = read['read_id']
         # calculate scale
         scale = calibration(read['digitisation'], read['range'])
@@ -266,7 +279,7 @@ def main():
         else:
             read_counter += 1
             total_reads += 1
-
+        total_slow5_read_time = total_slow5_read_time + (time.time() - t0)
         if read_counter >= 1000:
             get_reads(client, fq, read_counter)
             read_counter = 0
@@ -300,6 +313,13 @@ def main():
     sys.stderr.write("Disconnecting server\n")
     server.terminate()
     sys.stderr.write("Done\n")
+
+    sys.stderr.write("\n")
+    sys.stderr.write("DEBUG: Timing info:\n")
+    sys.stderr.write("total_guppy_poll_time: {}s\n".format(total_guppy_poll_time))
+    sys.stderr.write("total_fastq_write_time: {}s\n".format(total_fastq_write_time))
+    sys.stderr.write("total_slow5_read_time: {}s\n".format(total_slow5_read_time))
+
 
 
 if __name__ == '__main__':

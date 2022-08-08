@@ -31,6 +31,11 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
     source ./venv3/bin/activate
     pip install --upgrade pip
     pip install --upgrade setuptools wheel
+
+    # if your slow5 file uses zstd compression and you have zstd installed
+    # set this first to ensure pyslow5 installs with zstd:
+    # export PYSLOW5_ZSTD=1
+
     python setup.py install
 
     buttery-eel --help
@@ -38,7 +43,7 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
 
 Set up flags needed and run
 
-    buttery-eel --guppy_bin ont-guppy-6.1.3/bin --port 5558 -x "auto" -c dna_r9.4.1_450bps_fast_prom.cfg -i /Data/slow5/PAF25452_pass.blow5 -o /Data/fastq/test.fastq
+    buttery-eel --guppy_bin ont-guppy-6.1.3/bin --port 5558 -x auto --config dna_r9.4.1_450bps_fast_prom.cfg -i /Data/slow5/PAF25452_pass.blow5 -o /Data/fastq/test.fastq
 
 
 the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`

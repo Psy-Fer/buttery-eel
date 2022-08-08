@@ -48,6 +48,30 @@ Set up flags needed and run
 
 the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`
 
+
+# Shutting down server
+
+If everything goes right, the server will be terminated at the end of the basecalling.
+
+However, sometimes things go wrong, and the wrapper will temrinate before it terminates the server.
+
+I will fix this eventually, but for now, here is how you check for the server and then kill it.
+
+    # check for guppy instanaces
+    ps -ef | grep guppy
+
+    # That might give you a result like this
+
+    # hasindu  27946 27905 99 19:31 pts/22   01:25:29 /install/ont-guppy-6.1.3/bin/guppy_basecall_server --log_path buttery_guppy_logs --config dna_r9.4.1_450bps_hac_prom.cfg --port 5558 --use_tcp -x cuda:all --max_queued_reads 2000 --chunk_size 2000
+
+    # using the --port to see that it is indeed the one you started.
+    # you can then kill the process with, where in this case, PID=27946
+
+    kill <PID>
+
+    # then you can try again
+
+
 # Info
 
 ONT have 4 basecallers.

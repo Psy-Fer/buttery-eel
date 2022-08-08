@@ -66,8 +66,6 @@ def write_fastq(fq, header, seq, qscore):
 
 
 def get_reads(client, fq, read_counter):
-    global total_guppy_poll_time
-    t0 = time.time()
     done = 0
     while done < read_counter:
         bcalled = client.get_completed_reads()
@@ -89,7 +87,6 @@ def get_reads(client, fq, read_counter):
                 qscore = call[0]['datasets']['qstring']
                 write_fastq(fq, header, sequence, qscore)
     done = 0
-    total_guppy_poll_time = total_guppy_poll_time + (time.time()-t0)
 
 # How we get data out of the model files if they are not provided by the metadata output
 
@@ -256,7 +253,8 @@ def main():
     read_counter = 0
     done = 0
     skipped = []
-    global total_slow5_read_time
+    total_slow5_read_time = 0
+    total_guppy_poll_time = 0
     for read in reads:
         t0 = time.time()
         read_id = read['read_id']
@@ -290,14 +288,18 @@ def main():
             total_reads += 1
         total_slow5_read_time = total_slow5_read_time + (time.time() - t0)
         if read_counter >= 1000:
+            gp = time.time()
             get_reads(client, fq, read_counter)
+            total_guppy_poll_time = total_guppy_poll_time + (time.time()-gp)
             read_counter = 0
         sys.stderr.write("\rprocessed reads: %d" % total_reads)
         sys.stderr.flush()
 
     # collect any last leftover reads
     if read_counter > 0:
+        gp = time.time()
         get_reads(client, fq, read_counter)
+        total_guppy_poll_time = total_guppy_poll_time + (time.time()-gp)
         read_counter = 0
 
     sys.stderr.write("\n\n")

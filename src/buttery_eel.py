@@ -72,7 +72,7 @@ def get_reads(client, fq, read_counter):
     while done < read_counter:
         bcalled = client.get_completed_reads()
         if not bcalled:
-            time.sleep(0.5)
+            time.sleep(0.2)
             continue
         else:
             for call in bcalled:
@@ -119,7 +119,7 @@ def get_reads(client, fq, read_counter):
 
 
 def main():
-
+    tt = time.time()
     # ==========================================================================
     # Software ARGS
     # ==========================================================================
@@ -155,7 +155,7 @@ def main():
                         help="Number of reads to send to guppy server queue")
     parser.add_argument("--chunk_size", default="2000",
                         help="signal chunk size, lower this for lower VRAM GPUs")
-    parser.add_argument("-x", "--device", default='"auto"',
+    parser.add_argument("-x", "--device", default="auto",
                         help="Specify GPU device: 'auto', or 'cuda:<device_id>'")
     # parser.add_argument("--guppy_server_args",
     #                     help="config file containing any extra args to set on guppy_basecall_server")
@@ -319,6 +319,7 @@ def main():
     sys.stderr.write("total_guppy_poll_time: {}s\n".format(total_guppy_poll_time))
     sys.stderr.write("total_fastq_write_time: {}s\n".format(total_fastq_write_time))
     sys.stderr.write("total_slow5_read_time: {}s\n".format(total_slow5_read_time))
+    sys.stderr.write("Total script time: {}s\n".format(time.time() - tt))
 
 
 

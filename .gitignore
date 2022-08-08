@@ -3,3 +3,4 @@ buttery_guppy_logs
 lib
 *egg*
 dist
+__pycache__

@@ -308,7 +308,6 @@ def main():
     sys.stderr.write("\n")
     # close file
     fq.close()
-    s5.close()
 
     sys.stderr.write("==========================================================================\n  Cleanup\n==========================================================================\n")
     # terminate guppy_basecall_server

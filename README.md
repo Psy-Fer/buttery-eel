@@ -33,6 +33,7 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
     pip install --upgrade setuptools wheel
 
     # if your slow5 file uses zstd compression and you have zstd installed
+    # see slow5lib for more info
     # set this first to ensure pyslow5 installs with zstd:
     # export PYSLOW5_ZSTD=1
 

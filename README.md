@@ -30,7 +30,7 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
     python3 -m venv venv3
     source ./venv3/bin/activate
     pip install --upgrade pip
-    pip install --upgrade setuptools wheel numpy
+    pip install --upgrade setuptools wheel
 
     # if your slow5 file uses zstd compression and you have zstd installed
     # set this first to ensure pyslow5 installs with zstd:

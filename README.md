@@ -111,5 +111,5 @@ Lastly, I'd like to say i'm a little surprised this wasn't suggested to us by th
 # Software used
 - slow5lib
 - ONT guppy
-- ONT ont-pyguppy-client-lib
+- ONT ont-pyguppy-client-lib https://pypi.org/project/ont-pyguppy-client-lib/6.2.1/
 - basecaller code and flow mostly follows the methods used here: https://github.com/LooseLab/readfish/blob/23dd37117bce576b99caf097e7711dc87d30fa0a/ru/basecall.py by Matt Loose and Alexander Payne

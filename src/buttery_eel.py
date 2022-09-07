@@ -204,7 +204,7 @@ def main():
                         help="input blow5 file for basecalling")
     parser.add_argument("-o", "--output", required=True,
                         help="output .fastq file to write")
-    parser.add_argument("--guppy_bin", type=Path, required=True,
+    parser.add_argument("-g", "--guppy_bin", type=Path, required=True,
                         help="path to ont_guppy/bin folder")
     parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                         help="basecalling model config")

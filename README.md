@@ -9,17 +9,17 @@ You can download guppy here: https://community.nanoporetech.com/downloads. An ON
 
 # Quick start
 
-Using python3, preferably python3.7 or higher
+Using python3, preferably python3.7 to 3.9. Python 3.10 and higher does not yet have any pip wheel builds available for v6.3.7 and lower of guppy
 
-Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.1.3`
+Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.7`
 
 Download: https://community.nanoporetech.com/downloads
 
 The `guppy` and `ont-pyguppy-client-lib` versions need to match
 
-    # if GUPPY_VERSION=6.1.3
+    # if GUPPY_VERSION=6.3.7
     # modify requirements.txt to have:
-    #   ont-pyguppy-client-lib==6.1.3
+    #   ont-pyguppy-client-lib==6.3.7
 
 
     git clone https://github.com/Psy-Fer/buttery-eel.git
@@ -39,9 +39,36 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
     buttery-eel --help
 
 
-Set up flags needed and run
+Usage:
 
-    buttery-eel --guppy_bin ont-guppy-6.1.3/bin --port 5558 -x auto --config dna_r9.4.1_450bps_fast_prom.cfg -i /Data/slow5/PAF25452_pass.blow5 -o /Data/fastq/test.fastq
+    usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--call_mods] [--log LOG] [-v]
+
+    buttery-eel - wrapping guppy for file agnostic basecalling
+
+    optional arguments:
+    -h, --help            show this help message and exit
+    -i INPUT, --input INPUT
+                            input blow5 file for basecalling (default: None)
+    -o OUTPUT, --output OUTPUT
+                            output .fastq or unaligned .sam file to write (default: None)
+    -g GUPPY_BIN, --guppy_bin GUPPY_BIN
+                            path to ont_guppy/bin folder (default: None)
+    --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
+    --call_mods           output MM tag for methylation - will output sam - use with appropriate mod config (default: False)
+    --log LOG             guppy log folder path (default: buttery_guppy_logs)
+    -v, --version         Prints version
+
+
+Set up flags needed and run (`--use_tcp` is needed but not forced in these early versions):
+
+    buttery-eel -g ont-guppy-6.3.7/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_fast.cfg --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.fastq
+
+To call modifications, provide a `modbases` model and the `--call_mods` flag. Output will now be unaligned-sam containing the `MM/ML` tags. It will also provide the move table
+
+You must use guppy 6.3.0 or higher for mod calling
+
+    buttery-eel -g ont-guppy-6.3.7/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.sam 
+
 
 
 the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`
@@ -53,17 +80,17 @@ If everything goes right, the server will be terminated at the end of the baseca
 
 However, sometimes things go wrong, and the wrapper will temrinate before it terminates the server.
 
-I will fix this eventually, but for now, here is how you check for the server and then kill it.
+I have mostly fixed this but sometimes it still happens. Here is how you check for the server and then kill it.
 
     # check for guppy instanaces
     ps -ef | grep guppy
 
     # That might give you a result like this
 
-    # hasindu  27946 27905 99 19:31 pts/22   01:25:29 /install/ont-guppy-6.1.3/bin/guppy_basecall_server --log_path buttery_guppy_logs --config dna_r9.4.1_450bps_hac_prom.cfg --port 5558 --use_tcp -x cuda:all --max_queued_reads 2000 --chunk_size 2000
+    # hasindu  27946 27905 99 19:31 pts/22   01:25:29 /install/ont-guppy-6.3.7/bin/guppy_basecall_server --log_path buttery_guppy_logs --config dna_r9.4.1_450bps_hac_prom.cfg --port 5558 --use_tcp -x cuda:all --max_queued_reads 2000 --chunk_size 2000
 
     # using the --port to see that it is indeed the one you started.
-    # you can then kill the process with, where in this case, PID=27946
+    # you can then kill the process with, where in this case, `PID=27946`
 
     kill <PID>
 
@@ -99,6 +126,7 @@ The best thing about this, is all of the libraries and code is open, and so we c
 - Hasindu Gamaarachchi for having the idea to do this, and for the issue posted on the slow5tools repo by SziKayLeung
 - My partner Hilary for coming up with the name.
 - Matt Loose and Alexander Payne for having the basics of this all along in your readfish code and being awesome in general
+- ONT and their open source code of bonito and dorado for handling uSAM writing.
 - Lastly, I'd like to say i'm a little surprised this wasn't suggested to us by the devs at ONT when they were rejecting our pull requests on Guppy, Bonito, and Dorado. Oh well.
 
 # Software used

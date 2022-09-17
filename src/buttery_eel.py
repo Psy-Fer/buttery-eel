@@ -11,6 +11,7 @@ from contextlib import contextmanager, redirect_stdout
 
 import pyslow5
 
+import pyguppy_client_lib
 from pyguppy_client_lib.pyclient import PyGuppyClient
 from pyguppy_client_lib import helper_functions
 
@@ -25,12 +26,28 @@ class MyParser(argparse.ArgumentParser):
 
 @contextmanager
 def start_guppy_server_and_client(args, server_args):
+    """
+    Thanks to Alex Payne for basis of this code to appropriately handle the server and client connections
+    https://gist.github.com/alexomics/043bb120c74161e5b93e1b68fb00206c
+
+    Starts server and connects client
+    TODO: allow a connection to existing guppy server
+    """
     server_args.extend(["--log_path", args.log,
                         "--config", args.config,
                         # "--port", args.port,
                         # "--max_queued_reads", args.max_queued_reads,
                         # "--chunk_size", args.chunk_size,
                         ])
+    params = {"priority": PyGuppyClient.high_priority}
+    
+    if args.call_mods:
+        params["move_and_trace_enabled"] = True
+    
+    # if args.align_ref:
+    #     server_args.extend(["--align_ref", args.align_ref])
+    #     params["align_ref"] = args.align_ref
+
     # This function has it's own prints that may want to be suppressed
     with redirect_stdout(StringIO()) as fh:
         server, port = helper_functions.run_server(server_args, bin_path=args.guppy_bin)
@@ -42,10 +59,12 @@ def start_guppy_server_and_client(args, server_args):
         address = "{}".format(port)
     else:
         address = "localhost:{}".format(port)
-    client = PyGuppyClient(address=address, config=args.config)
+    client = PyGuppyClient(address=address, config=args.config, throttle=3)
+
+
 
     sys.stderr.write("Setting params...\n")
-    client.set_params({"priority": PyGuppyClient.high_priority})
+    client.set_params(params)
     sys.stderr.write("Connecting...\n")
     try:
         with client:
@@ -83,15 +102,56 @@ def calibration(digitisation, range):
     return range / digitisation
 
 
-def write_fastq(fq, header, seq, qscore):
-    """
-    crude but effective fastq writter
-    """
-    fq.write("{}\n".format(header))
-    fq.write("{}\n".format(seq))
-    fq.write("+\n")
-    fq.write("{}\n".format(qscore))
+# def write_fastq(OUT, header, seq, qscore):
+#     """
+#     crude but effective fastq writter
+#     """
+#     OUT.write("{}\n".format(header))
+#     OUT.write("{}\n".format(seq))
+#     OUT.write("+\n")
+#     OUT.write("{}\n".format(qscore))
 
+def sam_header(OUT, sep='\t'):
+    """
+    Format a string sam header.
+    This is taken from Bonito by Chris Seymour at ONT.
+    https://github.com/nanoporetech/bonito/blob/master/bonito/io.py#L103
+    """
+    HD = sep.join([
+        '@HD',
+        'VN:1.5',
+        'SO:unknown',
+    ])
+    PG1 = sep.join([
+        '@PG',
+        'ID:basecaller',
+        'PN:guppy',
+        'VN:%s' % pyguppy_client_lib.__version__,
+    ])
+    PG2 = sep.join([
+        '@PG',
+        'ID:wrapper',
+        'PN:buttery-eel',
+        'VN:%s' % __version__,
+        'CL:buttery-eel %s' % ' '.join(sys.argv[1:]),
+        'DS:guppy wrapper',
+    ])
+    OUT.write("{}\n".format(HD))
+    OUT.write("{}\n".format(PG1))
+    OUT.write("{}\n".format(PG2))
+
+
+def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, sam="", mods=False):
+    if SAM_OUT:
+        if mods:
+            OUT.write("{}\n".format(sam))
+        else:
+            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\n".format(read_id, seq, qscore))
+    else:
+        OUT.write("{}\n".format(header))
+        OUT.write("{}\n".format(seq))
+        OUT.write("+\n")
+        OUT.write("{}\n".format(qscore))
 
 
 def submit_read(client, read):
@@ -124,7 +184,7 @@ def submit_read(client, read):
     return result, skipped
 
 
-def get_reads(client, fq, read_counter):
+def get_reads(client, OUT, SAM_OUT, mods, read_counter):
     """
     Get the reads back from the basecall server after being basecalled
     bcalled object contains 1 or more called reads, which contain various data
@@ -138,18 +198,28 @@ def get_reads(client, fq, read_counter):
             continue
         else:
             for call in bcalled:
+                sam_record = ""
+                # print(call[0]['metadata']['alignment_sam_record'])
                 done += 1
                 if len(call) != 1:
                     # possible split reads?
                     sys.stderr.write("Call is longer than 1: {}\n".format(len(call)))
-
-
+                read_id = call[0]['metadata']['read_id']
                 # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
                 # model_version_id = get_model_info(args.config, args.guppy_bin)
                 header = "@{} model_version_id={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'])
                 sequence = call[0]['datasets']['sequence']
                 qscore = call[0]['datasets']['qstring']
-                write_fastq(fq, header, sequence, qscore)
+                # when calling mods, can just output sam_record value
+                # otherwise, write_output will handle unaligned sam with no mods
+                if mods:
+                    try:
+                        sam_record = call[0]['metadata']['alignment_sam_record']
+                    except:
+                        # TODO: add warning that mods model not being used, and exit
+                        sam_record = ""
+                        mods = False
+                write_output(OUT, read_id, header, sequence, qscore, SAM_OUT, sam=sam_record, mods=mods)
     done = 0
 
 # How we get data out of the model files if they are not provided by the metadata output
@@ -203,11 +273,16 @@ def main():
     parser.add_argument("-i", "--input", required=True,
                         help="input blow5 file for basecalling")
     parser.add_argument("-o", "--output", required=True,
-                        help="output .fastq file to write")
+                        help="output .fastq or unaligned .sam file to write")
     parser.add_argument("-g", "--guppy_bin", type=Path, required=True,
                         help="path to ont_guppy/bin folder")
     parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                         help="basecalling model config")
+    parser.add_argument("--call_mods", action="store_true",
+                        help="output MM tag for methylation - will output sam - use with appropriate mod config")
+    # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
+    # parser.add_argument("-a", "--align_ref",
+    #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
     # parser.add_argument("--port", default="5558",
     #                     help="port to use between server/client")
     parser.add_argument("--log", default="buttery_guppy_logs",
@@ -240,6 +315,25 @@ def main():
     # guppy_server_args = None
     # guppy_client_args = None
 
+    SAM_OUT = False
+    # check version, as only 6.3.0+ will support MM/ML tags correctly
+    if args.call_mods:
+        check = True
+        check_major = 6
+        check_minor = 3
+        major, minor, patch = [int(i) for i in pyguppy_client_lib.__version__.split(".")]
+        if major < check_major:
+            check = False
+        elif major == check_major:
+            if minor < check_minor:
+                check = False
+        sys.stderr.write("\n")
+        sys.stderr.write("MOD CALLING VERSION CHECK: >6.3.0? {}\n".format(check))
+        sys.stderr.write("\n")
+        if not check:
+            sys.stderr.write("ERROR: Please use guppy and ont-pyguppy-client-lib version 6.3.0 or higher for modification calling\n")
+            sys.stderr.write("\n")
+            sys.exit(1)
 
     # ==========================================================================
     # Start guppy_basecall_server
@@ -273,7 +367,15 @@ def main():
         sys.stderr.write("==========================================================================\n  Files\n==========================================================================\n")
         sys.stderr.write("Reading from: {}\n".format(args.input))
         sys.stderr.write("Writing to: {}\n".format(args.output))
-        fq = open(args.output, 'w')
+        if args.call_mods or args.output.split(".")[-1]=="sam":
+            # TODO: check filename ends in .sam
+            SAM_OUT = True
+            OUT = open(args.output, 'w')
+            sam_header(OUT)
+        else:
+            # TODO: check output ends in .fastq
+            OUT = open(args.output, 'w')
+        
         s5 = pyslow5.Open(args.input, 'r')
         reads = s5.seq_reads()
         sys.stderr.write("\n")
@@ -296,14 +398,14 @@ def main():
                 read_counter += 1
                 total_reads += 1
             if read_counter >= 1000:
-                get_reads(client, fq, read_counter)
+                get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter)
                 read_counter = 0
             sys.stderr.write("\rprocessed reads: %d" % total_reads)
             sys.stderr.flush()
 
         # collect any last leftover reads
         if read_counter > 0:
-            get_reads(client, fq, read_counter)
+            get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter)
             read_counter = 0
 
         sys.stderr.write("\n\n")
@@ -318,7 +420,7 @@ def main():
         sys.stderr.write("skipped {} reads\n".format(len(skipped)))
         sys.stderr.write("\n")
         # close file
-        fq.close()
+        OUT.close()
 
     sys.stderr.write("==========================================================================\n  Cleanup\n==========================================================================\n")
     sys.stderr.write("Disconnecting client\n")

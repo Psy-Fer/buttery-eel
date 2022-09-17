@@ -67,11 +67,14 @@ To call modifications, provide a `modbases` model and the `--call_mods` flag. Ou
 
 You must use guppy 6.3.0 or higher for mod calling
 
-    buttery-eel -g ont-guppy-6.3.7/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.sam 
-
+    buttery-eel -g ont-guppy-6.3.7/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.mod.sam
 
 
 the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`
+
+## Aligning uSAM output and getting sorted bam using -y in minimap2
+
+    samtools fastq -TMM,ML test.mod.sam | minimap2 -ax map-ont -y ref.fa - | samtools view -Sb - | samtools sort - > test.aln.mod.bam
 
 
 # Shutting down server

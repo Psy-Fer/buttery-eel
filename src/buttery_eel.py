@@ -141,12 +141,13 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG2))
 
 
-def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, sam="", mods=False):
+def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False):
+    
     if SAM_OUT:
         if mods:
             OUT.write("{}\n".format(sam))
         else:
-            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\n".format(read_id, seq, qscore))
+            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
     else:
         OUT.write("{}\n".format(header))
         OUT.write("{}\n".format(seq))
@@ -184,12 +185,15 @@ def submit_read(client, read):
     return result, skipped
 
 
-def get_reads(client, OUT, SAM_OUT, mods, read_counter):
+def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
     """
     Get the reads back from the basecall server after being basecalled
     bcalled object contains 1 or more called reads, which contain various data
-    TODO: detect when sam is returned and write out sam/bam instead of fastq
     """
+    SPLIT_PASS = False
+    if qscore_cutoff:
+        SPLIT_PASS = True
+        qs_cutoff = float(qscore_cutoff)
     done = 0
     while done < read_counter:
         bcalled = client.get_completed_reads()
@@ -199,15 +203,16 @@ def get_reads(client, OUT, SAM_OUT, mods, read_counter):
         else:
             for call in bcalled:
                 sam_record = ""
-                # print(call[0]['metadata']['alignment_sam_record'])
                 done += 1
                 if len(call) != 1:
                     # possible split reads?
                     sys.stderr.write("Call is longer than 1: {}\n".format(len(call)))
                 read_id = call[0]['metadata']['read_id']
+                read_qscore = call[0]['metadata']['mean_qscore']
+                int_read_qscore = int(read_qscore)
                 # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
                 # model_version_id = get_model_info(args.config, args.guppy_bin)
-                header = "@{} model_version_id={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'])
+                header = "@{} model_version_id={} mean_qscore={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'], int_read_qscore)
                 sequence = call[0]['datasets']['sequence']
                 qscore = call[0]['datasets']['qstring']
                 # when calling mods, can just output sam_record value
@@ -219,7 +224,16 @@ def get_reads(client, OUT, SAM_OUT, mods, read_counter):
                         # TODO: add warning that mods model not being used, and exit
                         sam_record = ""
                         mods = False
-                write_output(OUT, read_id, header, sequence, qscore, SAM_OUT, sam=sam_record, mods=mods)
+                if SPLIT_PASS:
+                    if read_qscore >= qs_cutoff:
+                        # pass
+                        out = OUT[0]
+                    else:
+                        # fail
+                        out = OUT[1]
+                else:
+                    out = OUT
+                write_output(out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods)
     done = 0
 
 # How we get data out of the model files if they are not provided by the metadata output
@@ -279,7 +293,9 @@ def main():
     parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                         help="basecalling model config")
     parser.add_argument("--call_mods", action="store_true",
-                        help="output MM tag for methylation - will output sam - use with appropriate mod config")
+                        help="output MM/ML tags for methylation - will output sam - use with appropriate mod config")
+    parser.add_argument("-q", "--qscore", type=int,
+                        help="A mean q-score to split fastq/sam files into pass/fail output")
     # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
     # parser.add_argument("-a", "--align_ref",
     #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
@@ -366,15 +382,44 @@ def main():
         # ==========================================================================
         sys.stderr.write("==========================================================================\n  Files\n==========================================================================\n")
         sys.stderr.write("Reading from: {}\n".format(args.input))
-        sys.stderr.write("Writing to: {}\n".format(args.output))
+        # sys.stderr.write("Writing to: {}\n".format(args.output))
         if args.call_mods or args.output.split(".")[-1]=="sam":
-            # TODO: check filename ends in .sam
             SAM_OUT = True
-            OUT = open(args.output, 'w')
-            sam_header(OUT)
+            if args.qscore:
+                file = args.output.split(".")
+                # doing [-1:] rather than [-1] gives a list back
+                name, ext = [".".join(file[:-1])], file[-1:]
+                pass_file = ".".join(name + ["pass"] + ext)
+                fail_file = ".".join(name + ["fail"] + ext)
+                PASS = open(pass_file, 'w') 
+                FAIL = open(fail_file, 'w')
+                OUT = (PASS, FAIL)
+                sam_header(PASS)
+                sam_header(FAIL)
+                sys.stderr.write("Writing to: {}\n".format(pass_file))
+                sys.stderr.write("Writing to: {}\n".format(fail_file))
+            else:
+                OUT = open(args.output, 'w')
+                sam_header(OUT)
+                sys.stderr.write("Writing to: {}\n".format(args.output))
         else:
             # TODO: check output ends in .fastq
-            OUT = open(args.output, 'w')
+            # if args.output.split(".")[-1] not in ["fastq", "fq"]:
+            #   some error!
+            if args.qscore:
+                file = args.output.split(".")
+                # doing [-1:] rather than [-1] gives a list back
+                name, ext = [".".join(file[:-1])], file[-1:]
+                pass_file = ".".join(name + ["pass"] + ext)
+                fail_file = ".".join(name + ["fail"] + ext)
+                PASS = open(pass_file, 'w') 
+                FAIL = open(fail_file, 'w')
+                OUT = (PASS, FAIL)
+                sys.stderr.write("Writing to: {}\n".format(pass_file))
+                sys.stderr.write("Writing to: {}\n".format(fail_file))
+            else:
+                OUT = open(args.output, 'w')
+                sys.stderr.write("Writing to: {}\n".format(args.output))
         
         s5 = pyslow5.Open(args.input, 'r')
         reads = s5.seq_reads()
@@ -398,14 +443,14 @@ def main():
                 read_counter += 1
                 total_reads += 1
             if read_counter >= 1000:
-                get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter)
+                get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
                 read_counter = 0
             sys.stderr.write("\rprocessed reads: %d" % total_reads)
             sys.stderr.flush()
 
         # collect any last leftover reads
         if read_counter > 0:
-            get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter)
+            get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
             read_counter = 0
 
         sys.stderr.write("\n\n")
@@ -420,7 +465,11 @@ def main():
         sys.stderr.write("skipped {} reads\n".format(len(skipped)))
         sys.stderr.write("\n")
         # close file
-        OUT.close()
+        if len(OUT) > 1:
+            for i in OUT:
+                i.close()
+        else:
+            OUT.close()
 
     sys.stderr.write("==========================================================================\n  Cleanup\n==========================================================================\n")
     sys.stderr.write("Disconnecting client\n")

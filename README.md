@@ -41,7 +41,7 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
 
 Usage:
 
-    usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--call_mods] [--log LOG] [-v]
+    usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--call_mods] [-q QSCORE] [--log LOG] [-v]
 
     buttery-eel - wrapping guppy for file agnostic basecalling
 
@@ -54,9 +54,12 @@ Usage:
     -g GUPPY_BIN, --guppy_bin GUPPY_BIN
                             path to ont_guppy/bin folder (default: None)
     --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
-    --call_mods           output MM tag for methylation - will output sam - use with appropriate mod config (default: False)
+    --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
+    -q QSCORE, --qscore QSCORE
+                            A mean q-score to split fastq/sam files into pass/fail output (default: None)
     --log LOG             guppy log folder path (default: buttery_guppy_logs)
     -v, --version         Prints version
+
 
 
 Set up flags needed and run (`--use_tcp` is needed but not forced in these early versions):
@@ -75,6 +78,9 @@ the `--config` file can be found using this command with guppy `guppy_basecaller
 ## Aligning uSAM output and getting sorted bam using -y in minimap2
 
     samtools fastq -TMM,ML test.mod.sam | minimap2 -ax map-ont -y ref.fa - | samtools view -Sb - | samtools sort - > test.aln.mod.bam
+
+
+If you also wish to keep the quality scores in the unofficial qs tags or if mapping a regular unmapped sam the -T argument can be used in conjuntion with minimap2 -y for example: `-TMM,ML,qs` or `-Tqs`
 
 
 # Shutting down server

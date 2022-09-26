@@ -465,9 +465,9 @@ def main():
         sys.stderr.write("skipped {} reads\n".format(len(skipped)))
         sys.stderr.write("\n")
         # close file
-        if len(OUT) > 1:
-            for i in OUT:
-                i.close()
+        if type(OUT) == tuple:
+            OUT[0].close()
+            OUT[1].close()
         else:
             OUT.close()
 

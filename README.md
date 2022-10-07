@@ -9,17 +9,17 @@ You can download guppy here: https://community.nanoporetech.com/downloads. An ON
 
 # Quick start
 
-Using python3, preferably python3.7 to 3.9. Python 3.10 and higher does not yet have any pip wheel builds available for v6.3.7 and lower of guppy
+Using python3, preferably python3.7 to 3.9. Python 3.10 and higher does not yet have any pip wheel builds available for v6.3.8 and lower of guppy
 
-Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.7`
+Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.8`
 
 Download: https://community.nanoporetech.com/downloads
 
 The `guppy` and `ont-pyguppy-client-lib` versions need to match
 
-    # if GUPPY_VERSION=6.3.7
+    # if GUPPY_VERSION=6.3.8
     # modify requirements.txt to have:
-    #   ont-pyguppy-client-lib==6.3.7
+    #   ont-pyguppy-client-lib==6.3.8
 
 
     git clone https://github.com/Psy-Fer/buttery-eel.git
@@ -64,13 +64,13 @@ Usage:
 
 Set up flags needed and run (`--use_tcp` is needed but not forced in these early versions):
 
-    buttery-eel -g ont-guppy-6.3.7/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_fast.cfg --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.fastq
+    buttery-eel -g ont-guppy-6.3.8/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_fast.cfg --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.fastq
 
 To call modifications, provide a `modbases` model and the `--call_mods` flag. Output will now be unaligned-sam containing the `MM/ML` tags. It will also provide the move table
 
 You must use guppy 6.3.0 or higher for mod calling
 
-    buttery-eel -g ont-guppy-6.3.7/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.mod.sam
+    buttery-eel -g ont-guppy-6.3.8/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.mod.sam
 
 
 the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`
@@ -96,7 +96,7 @@ I have mostly fixed this but sometimes it still happens. Here is how you check f
 
     # That might give you a result like this
 
-    # hasindu  27946 27905 99 19:31 pts/22   01:25:29 /install/ont-guppy-6.3.7/bin/guppy_basecall_server --log_path buttery_guppy_logs --config dna_r9.4.1_450bps_hac_prom.cfg --port 5558 --use_tcp -x cuda:all --max_queued_reads 2000 --chunk_size 2000
+    # hasindu  27946 27905 99 19:31 pts/22   01:25:29 /install/ont-guppy-6.3.8/bin/guppy_basecall_server --log_path buttery_guppy_logs --config dna_r9.4.1_450bps_hac_prom.cfg --port 5558 --use_tcp -x cuda:all --max_queued_reads 2000 --chunk_size 2000
 
     # using the --port to see that it is indeed the one you started.
     # you can then kill the process with, where in this case, `PID=27946`

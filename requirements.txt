@@ -1,4 +1,4 @@
 numpy
 pyslow5
-ont-pyguppy-client-lib==6.3.7
+ont-pyguppy-client-lib==6.3.8
 pyyaml

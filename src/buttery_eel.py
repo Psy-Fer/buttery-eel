@@ -300,6 +300,8 @@ def main():
                         help="Number of threads to use reading slow5 file")
     parser.add_argument("--slow5_batchsize", type=int, default=4000,
                         help="Number of reads to process at a time reading slow5")
+    parser.add_argument("--quiet", action="store_true",
+                        help="Don't print progress")
     # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
     # parser.add_argument("-a", "--align_ref",
     #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
@@ -449,8 +451,9 @@ def main():
             if read_counter >= 1000:
                 get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
                 read_counter = 0
-            sys.stderr.write("\rprocessed reads: %d" % total_reads)
-            sys.stderr.flush()
+            if not args.quiet:
+                sys.stderr.write("\rprocessed reads: %d" % total_reads)
+                sys.stderr.flush()
 
         # collect any last leftover reads
         if read_counter > 0:

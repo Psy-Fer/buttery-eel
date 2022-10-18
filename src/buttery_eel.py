@@ -296,6 +296,10 @@ def main():
                         help="output MM/ML tags for methylation - will output sam - use with appropriate mod config")
     parser.add_argument("-q", "--qscore", type=int,
                         help="A mean q-score to split fastq/sam files into pass/fail output")
+    parser.add_argument("--slow5_threads", type=int, default=4,
+                        help="Number of threads to use reading slow5 file")
+    parser.add_argument("--slow5_batchsize", type=int, default=4000,
+                        help="Number of reads to process at a time reading slow5")
     # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
     # parser.add_argument("-a", "--align_ref",
     #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
@@ -422,7 +426,7 @@ def main():
                 sys.stderr.write("Writing to: {}\n".format(args.output))
         
         s5 = pyslow5.Open(args.input, 'r')
-        reads = s5.seq_reads()
+        reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
         sys.stderr.write("\n")
 
         # ==========================================================================

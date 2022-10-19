@@ -292,7 +292,7 @@ def main():
                         help="path to ont_guppy/bin folder")
     parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                         help="basecalling model config")
-    parser.add_argument("--guppy_batchsize", default="4000",
+    parser.add_argument("--guppy_batchsize", type=int, default=4000,
                         help="number of reads to send to guppy at a time.")
     parser.add_argument("--call_mods", action="store_true",
                         help="output MM/ML tags for methylation - will output sam - use with appropriate mod config")

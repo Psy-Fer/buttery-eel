@@ -23,6 +23,7 @@ from ._version import __version__
 
 
 total_reads = 0
+skipped = 0
 
 
 class MyParser(argparse.ArgumentParser):
@@ -157,13 +158,15 @@ def read_worker(args, iq):
     batches = get_slow5_batch(reads, size=args.slow5_batchsize)
     for batch in chain(batches):
         iq.put(batch)
+    
+    for _ in range(args.procs):
+        iq.put(None)
 
 
 def write_worker(q, files, SAM_OUT, qscore, call_mods, quiet):
     '''
     single threaded worker to process results queue
     '''
-    total_reads = 0
     if SAM_OUT:
         if qscore:
             PASS = open(files["pass_file"], 'w') 
@@ -577,9 +580,6 @@ def main():
                 OUT = {"single": args.output}
                 sys.stderr.write("Writing to: {}\n".format(args.output))
         
-        # s5 = pyslow5.Open(args.input, 'r')
-        # # reads = s5.seq_reads()
-        # reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
         sys.stderr.write("\n")
 
         # ==========================================================================
@@ -594,29 +594,18 @@ def main():
         processes = []
         reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
         reader.start()
-        processes.append(reader)
         out_writer = mp.Process(target=write_worker, args=(result_queue, OUT, SAM_OUT, args.qscore, args.call_mods, args.quiet), name='write_worker')
         out_writer.start()
-        processes.append(out_writer)
-        total_reads = 0
         skipped = []
         for i in range(args.procs):
-            # for num, skip, bcalled_list in pool.imap(sub_read, chain(batches)):
             basecall_worker = mp.Process(target=submit_read, args=(input_queue, result_queue, address, config, args.call_mods, args.qscore), daemon=True, name='write_worker_{}'.format(i))
             basecall_worker.start()
             processes.append(basecall_worker)
 
-        print([x.name for x in processes])
-        sys.stderr.write("reader join\n")
         reader.join()
-        sys.stderr.write("input_queue join\n")
-        for i in range(args.procs):
-            input_queue.put(None)
-        # input_queue.join()
-        sys.stderr.write("results_queue join\n")
+        for p in processes:
+            p.join()
         result_queue.put(None)
-        # result_queue.join()
-        sys.stderr.write("out_writer join\n")
         out_writer.join()
         sys.stderr.write("\n\n")
         sys.stderr.write("Basecalling complete!\n\n")
@@ -625,16 +614,11 @@ def main():
         # Finish up, close files, disconnect client and terminate server
         # ==========================================================================
         sys.stderr.write("\n")
-        sys.stderr.write("==========================================================================\n  Summary\n==========================================================================\n")
-        sys.stderr.write("Processed {} reads\n".format(total_reads))
-        sys.stderr.write("skipped {} reads\n".format(len(skipped)))
-        sys.stderr.write("\n")
-        # close file
-        # if len(OUT.keys()) > 1:
-        #     OUT["pass"].close()
-        #     OUT["fail"].close()
-        # else:
-        #     OUT["single"].close()
+        # sys.stderr.write("==========================================================================\n  Summary\n==========================================================================\n")
+        # global total_reads
+        # sys.stderr.write("Processed {} reads\n".format(total_reads))
+        # sys.stderr.write("skipped {} reads\n".format(len(skipped)))
+        # sys.stderr.write("\n")
 
     sys.stderr.write("==========================================================================\n  Cleanup\n==========================================================================\n")
     sys.stderr.write("Disconnecting client\n")

@@ -176,7 +176,7 @@ def submit_read(client, read):
         if tries > 1:
             time.sleep(client.throttle)
         tries += 1
-        if tries >= 50:
+        if tries >= 1000:
             if not result:
                 sys.stderr.write("Skipped a read: {}\n".format(read_id))
                 skipped = read_id

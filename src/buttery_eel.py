@@ -22,6 +22,9 @@ from pyguppy_client_lib import helper_functions
 from ._version import __version__
 
 
+total_reads = 0
+
+
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
         sys.stderr.write('error: %s\n' % message)
@@ -143,10 +146,24 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG1))
     OUT.write("{}\n".format(PG2))
 
-def write_worker(q, files, SAM_OUT, qscore, call_mods):
+def read_worker(args, iq):
+    '''
+    single threaded worker to read slow5 (with multithreading)
+    '''
+    s5 = pyslow5.Open(args.input, 'r')
+    # reads = s5.seq_reads()
+    # TODO: try different combinations for slow5_batchsize and size in the get batches
+    reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
+    batches = get_slow5_batch(reads, size=args.slow5_batchsize)
+    for batch in chain(batches):
+        iq.put(batch)
+
+
+def write_worker(q, files, SAM_OUT, qscore, call_mods, quiet):
     '''
     single threaded worker to process results queue
     '''
+    total_reads = 0
     if SAM_OUT:
         if qscore:
             PASS = open(files["pass_file"], 'w') 
@@ -167,13 +184,13 @@ def write_worker(q, files, SAM_OUT, qscore, call_mods):
         else:
             single = open(files["single"], 'w')
             OUT = {"single": single}
-
     while True:
+        bcalled_list = []
         bcalled_list = q.get()
         if bcalled_list is None:
             break
         for read in bcalled_list:
-            write_output(OUT, read["out"], read["read_id"], read["header"], read["sequence"], read["qscore"], SAM_OUT, read["int_read_qscore"], sam=read["sam_record"], mods=call_mods)
+            write_output(OUT, read["out"], read["read_id"], read["header"], read["sequence"], read["qscore"], SAM_OUT, read["int_read_qscore"], quiet, sam=read["sam_record"], mods=call_mods)
         q.task_done()
     
     if len(OUT.keys()) > 1:
@@ -182,8 +199,7 @@ def write_worker(q, files, SAM_OUT, qscore, call_mods):
     else:
         OUT["single"].close()
 
-def write_output(OUT, fkey, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False):
-    
+def write_output(OUT, fkey, read_id, header, seq, qscore, SAM_OUT, read_qscore, quiet, sam="", mods=False):
     if SAM_OUT:
         if mods:
             OUT[fkey].write("{}\n".format(sam))
@@ -194,9 +210,15 @@ def write_output(OUT, fkey, read_id, header, seq, qscore, SAM_OUT, read_qscore, 
         OUT[fkey].write("{}\n".format(seq))
         OUT[fkey].write("+\n")
         OUT[fkey].write("{}\n".format(qscore))
+    global total_reads
+    total_reads += 1
+    if not quiet:
+        sys.stderr.write("\rprocessed reads: %d" % total_reads)
+        sys.stderr.flush()
 
 
-def submit_read(batch, address, config, mods, qscore_cutoff):
+
+def submit_read(iq, rq, address, config, mods, qscore_cutoff):
     """
     submit a read to the basecall server
     """
@@ -210,76 +232,86 @@ def submit_read(batch, address, config, mods, qscore_cutoff):
     bcalled_list = []
 
     with PyGuppyClient(address=address, config=config) as client:
-        for read in batch:
-            read_id = read['read_id']
-            # calculate scale
-            scale = calibration(read['digitisation'], read['range'])
-            result = False
-            tries = 0
-            while not result:
-                result = client.pass_read(
-                        helper_functions.package_read(
-                            read_id=read_id,
-                            raw_data=np.frombuffer(read['signal'], np.int16),
-                            daq_offset=read['offset'],
-                            daq_scaling=scale,
+        # submit a batch of reads to be basecalled
+        while True:
+            batch = iq.get()
+            if batch is None:
+                break
+            for read in batch:
+                read_id = read['read_id']
+                # calculate scale
+                scale = calibration(read['digitisation'], read['range'])
+                result = False
+                tries = 0
+                while not result:
+                    result = client.pass_read(
+                            helper_functions.package_read(
+                                read_id=read_id,
+                                raw_data=np.frombuffer(read['signal'], np.int16),
+                                daq_offset=read['offset'],
+                                daq_scaling=scale,
+                            )
                         )
-                    )
-                if tries > 1:
-                    time.sleep(client.throttle)
-                tries += 1
-                if tries >= 1000:
-                    if not result:
-                        sys.stderr.write("Skipped a read: {}\n".format(read_id))
-                        skipped.append(read_id)
-                        break
-            if result:
-                read_counter += 1
+                    if tries > 1:
+                        time.sleep(client.throttle)
+                    tries += 1
+                    if tries >= 1000:
+                        if not result:
+                            sys.stderr.write("Skipped a read: {}\n".format(read_id))
+                            skipped.append(read_id)
+                            break
+                if result:
+                    read_counter += 1
         
-       
-        while done < read_counter:
-            bcalled = client.get_completed_reads()
-            if not bcalled:
-                time.sleep(client.throttle)
-                continue
-            else:
-                for call in bcalled:
-                    bcalled_read = {}
-                    bcalled_read["sam_record"] = ""
-                    done += 1
-                    if len(call) != 1:
-                        # possible split reads?
-                        sys.stderr.write("Call is longer than 1: {}\n".format(len(call)))
-                    bcalled_read["read_id"] = call[0]['metadata']['read_id']
-                    
-                    read_qscore = call[0]['metadata']['mean_qscore']
-                    int_read_qscore = int(read_qscore)
-                    bcalled_read["int_read_qscore"] = int_read_qscore
-                    # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
-                    # model_version_id = get_model_info(args.config, args.guppy_bin)
-                    bcalled_read["header"] = "@{} model_version_id={} mean_qscore={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'], int_read_qscore)
-                    bcalled_read["sequence"] = call[0]['datasets']['sequence']
-                    bcalled_read["qscore"] = call[0]['datasets']['qstring']
-                    # when calling mods, can just output sam_record value
-                    # otherwise, write_output will handle unaligned sam with no mods
-                    if mods:
-                        try:
-                            bcalled_read["sam_record"] = call[0]['metadata']['alignment_sam_record']
-                        except:
-                            # TODO: add warning that mods model not being used, and exit
-                            bcalled_read["sam_record"] = ""
-                    if SPLIT_PASS:
-                        if read_qscore >= qs_cutoff:
-                            # pass
-                            bcalled_read["out"] = "pass"
-                        else:
-                            # fail
-                            bcalled_read["out"] = "fail"
-                    else:
-                        bcalled_read["out"] = "single"
-                    bcalled_list.append(bcalled_read)
+            # now collect the basecalled reads
+            while done < read_counter:
+                bcalled = client.get_completed_reads()
+                if not bcalled:
+                    time.sleep(client.throttle)
+                    continue
+                else:
+                    for call in bcalled:
+                        bcalled_read = {}
+                        bcalled_read["sam_record"] = ""
+                        done += 1
+                        if len(call) != 1:
+                            # possible split reads?
+                            sys.stderr.write("Call is longer than 1: {}\n".format(len(call)))
+                        bcalled_read["read_id"] = call[0]['metadata']['read_id']
                         
-    return read_counter, skipped, bcalled_list
+                        read_qscore = call[0]['metadata']['mean_qscore']
+                        int_read_qscore = int(read_qscore)
+                        bcalled_read["int_read_qscore"] = int_read_qscore
+                        # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
+                        # model_version_id = get_model_info(args.config, args.guppy_bin)
+                        bcalled_read["header"] = "@{} model_version_id={} mean_qscore={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'], int_read_qscore)
+                        bcalled_read["sequence"] = call[0]['datasets']['sequence']
+                        bcalled_read["qscore"] = call[0]['datasets']['qstring']
+                        # when calling mods, can just output sam_record value
+                        # otherwise, write_output will handle unaligned sam with no mods
+                        if mods:
+                            try:
+                                bcalled_read["sam_record"] = call[0]['metadata']['alignment_sam_record']
+                            except:
+                                # TODO: add warning that mods model not being used, and exit
+                                bcalled_read["sam_record"] = ""
+                        if SPLIT_PASS:
+                            if read_qscore >= qs_cutoff:
+                                # pass
+                                bcalled_read["out"] = "pass"
+                            else:
+                                # fail
+                                bcalled_read["out"] = "fail"
+                        else:
+                            bcalled_read["out"] = "single"
+                        bcalled_list.append(bcalled_read)
+            read_counter = 0
+            done = 0
+
+            # TODO: make a skipped queue to handle those
+            rq.put(bcalled_list)
+            iq.task_done()
+            bcalled_list = []
 
 
 # def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
@@ -545,9 +577,9 @@ def main():
                 OUT = {"single": args.output}
                 sys.stderr.write("Writing to: {}\n".format(args.output))
         
-        s5 = pyslow5.Open(args.input, 'r')
-        # reads = s5.seq_reads()
-        reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
+        # s5 = pyslow5.Open(args.input, 'r')
+        # # reads = s5.seq_reads()
+        # reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
         sys.stderr.write("\n")
 
         # ==========================================================================
@@ -557,26 +589,34 @@ def main():
         sys.stderr.write("\n")
 
         mp.set_start_method('spawn')
+        input_queue = mp.JoinableQueue()
         result_queue = mp.JoinableQueue()
-        out_writer = mp.Process(target=write_worker, args=(result_queue, OUT, SAM_OUT, args.qscore, args.call_mods), daemon=True, name='write_worker')
+        processes = []
+        reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
+        reader.start()
+        processes.append(reader)
+        out_writer = mp.Process(target=write_worker, args=(result_queue, OUT, SAM_OUT, args.qscore, args.call_mods, args.quiet), name='write_worker')
         out_writer.start()
+        processes.append(out_writer)
         total_reads = 0
         skipped = []
-        batches = get_slow5_batch(reads, size=args.slow5_batchsize)
-        sub_read = partial(submit_read, address=address, config=config, mods=args.call_mods, qscore_cutoff=args.qscore)
-        with Pool(args.procs) as pool:
-            for num, skip, bcalled_list in pool.imap(sub_read, chain(batches)):
-                if len(skip) > 0:
-                    for i in skip:
-                        skipped.append(i)
-                total_reads += num
-                result_queue.put(bcalled_list)
-                # for read in bcalled_list:
-                #     write_output(OUT, read["out"], read["read_id"], read["header"], read["sequence"], read["qscore"], SAM_OUT, read["int_read_qscore"], sam=read["sam_record"], mods=args.call_mods)
-                if not args.quiet:
-                    sys.stderr.write("\rprocessed reads: %d" % total_reads)
-                    sys.stderr.flush()
+        for i in range(args.procs):
+            # for num, skip, bcalled_list in pool.imap(sub_read, chain(batches)):
+            basecall_worker = mp.Process(target=submit_read, args=(input_queue, result_queue, address, config, args.call_mods, args.qscore), daemon=True, name='write_worker_{}'.format(i))
+            basecall_worker.start()
+            processes.append(basecall_worker)
+
+        print([x.name for x in processes])
+        sys.stderr.write("reader join\n")
+        reader.join()
+        sys.stderr.write("input_queue join\n")
+        for i in range(args.procs):
+            input_queue.put(None)
+        # input_queue.join()
+        sys.stderr.write("results_queue join\n")
         result_queue.put(None)
+        # result_queue.join()
+        sys.stderr.write("out_writer join\n")
         out_writer.join()
         sys.stderr.write("\n\n")
         sys.stderr.write("Basecalling complete!\n\n")

@@ -10,6 +10,7 @@ from io import StringIO
 from contextlib import contextmanager, redirect_stdout
 from functools import partial
 from itertools import chain
+import multiprocessing as mp
 from multiprocessing import Pool
 
 import pyslow5
@@ -142,6 +143,44 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG1))
     OUT.write("{}\n".format(PG2))
 
+def write_worker(q, files, SAM_OUT, qscore, call_mods):
+    '''
+    single threaded worker to process results queue
+    '''
+    if SAM_OUT:
+        if qscore:
+            PASS = open(files["pass_file"], 'w') 
+            FAIL = open(files["fail_file"], 'w')
+            sam_header(PASS)
+            sam_header(FAIL)
+            OUT = {"pass": PASS, "fail": FAIL}
+        else:
+            single = open(files["single"], 'w')
+            sam_header(single)
+            OUT = {"single": single}
+    else:
+        if qscore:
+            PASS = open(files["pass_file"], 'w') 
+            FAIL = open(files["fail_file"], 'w')
+            OUT = {"pass": PASS, "fail": FAIL}
+
+        else:
+            single = open(files["single"], 'w')
+            OUT = {"single": single}
+
+    while True:
+        bcalled_list = q.get()
+        if bcalled_list is None:
+            break
+        for read in bcalled_list:
+            write_output(OUT, read["out"], read["read_id"], read["header"], read["sequence"], read["qscore"], SAM_OUT, read["int_read_qscore"], sam=read["sam_record"], mods=call_mods)
+        q.task_done()
+    
+    if len(OUT.keys()) > 1:
+        OUT["pass"].close()
+        OUT["fail"].close()
+    else:
+        OUT["single"].close()
 
 def write_output(OUT, fkey, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False):
     
@@ -474,17 +513,17 @@ def main():
                 name, ext = [".".join(file[:-1])], file[-1:]
                 pass_file = ".".join(name + ["pass"] + ext)
                 fail_file = ".".join(name + ["fail"] + ext)
-                PASS = open(pass_file, 'w') 
-                FAIL = open(fail_file, 'w')
-                OUT = {"pass": PASS, "fail": FAIL}
-                sam_header(PASS)
-                sam_header(FAIL)
+                # PASS = open(pass_file, 'w') 
+                # FAIL = open(fail_file, 'w')
+                OUT = {"pass": pass_file, "fail": fail_file}
+                # sam_header(PASS)
+                # sam_header(FAIL)
                 sys.stderr.write("Writing to: {}\n".format(pass_file))
                 sys.stderr.write("Writing to: {}\n".format(fail_file))
             else:
-                single = open(args.output, 'w')
-                OUT = {"single": single}
-                sam_header(single)
+                # single = open(args.output, 'w')
+                OUT = {"single": args.output}
+                # sam_header(single)
                 sys.stderr.write("Writing to: {}\n".format(args.output))
         else:
             # TODO: check output ends in .fastq
@@ -496,14 +535,14 @@ def main():
                 name, ext = [".".join(file[:-1])], file[-1:]
                 pass_file = ".".join(name + ["pass"] + ext)
                 fail_file = ".".join(name + ["fail"] + ext)
-                PASS = open(pass_file, 'w') 
-                FAIL = open(fail_file, 'w')
-                OUT = {"pass": PASS, "fail": FAIL}
+                # PASS = open(pass_file, 'w') 
+                # FAIL = open(fail_file, 'w')
+                OUT = {"pass": pass_file, "fail": fail_file}
                 sys.stderr.write("Writing to: {}\n".format(pass_file))
                 sys.stderr.write("Writing to: {}\n".format(fail_file))
             else:
-                single = open(args.output, 'w')
-                OUT = {"single": single}
+                # single = open(args.output, 'w')
+                OUT = {"single": args.output}
                 sys.stderr.write("Writing to: {}\n".format(args.output))
         
         s5 = pyslow5.Open(args.input, 'r')
@@ -517,37 +556,28 @@ def main():
         sys.stderr.write("==========================================================================\n  Basecalling\n==========================================================================\n")
         sys.stderr.write("\n")
 
+        mp.set_start_method('spawn')
+        result_queue = mp.JoinableQueue()
+        out_writer = mp.Process(target=write_worker, args=(result_queue, OUT, SAM_OUT, args.qscore, args.call_mods), daemon=True, name='write_worker')
+        out_writer.start()
         total_reads = 0
-        read_counter = 0
         skipped = []
         batches = get_slow5_batch(reads, size=args.slow5_batchsize)
-        print(address)
-        print(config)
         sub_read = partial(submit_read, address=address, config=config, mods=args.call_mods, qscore_cutoff=args.qscore)
         with Pool(args.procs) as pool:
-            # for batch in chain(batches):
-            # for read in batch:
             for num, skip, bcalled_list in pool.imap(sub_read, chain(batches)):
-                # res, skip = submit_read(client, read)
                 if len(skip) > 0:
                     for i in skip:
-                        skipped.append(skip)
-                # read_counter += num
+                        skipped.append(i)
                 total_reads += num
-                for read in bcalled_list:
-                    write_output(OUT, read["out"], read["read_id"], read["header"], read["sequence"], read["qscore"], SAM_OUT, read["int_read_qscore"], sam=read["sam_record"], mods=args.call_mods)
-                # if read_counter >= args.guppy_batchsize:
-                #     get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
-                #     read_counter = 0
+                result_queue.put(bcalled_list)
+                # for read in bcalled_list:
+                #     write_output(OUT, read["out"], read["read_id"], read["header"], read["sequence"], read["qscore"], SAM_OUT, read["int_read_qscore"], sam=read["sam_record"], mods=args.call_mods)
                 if not args.quiet:
                     sys.stderr.write("\rprocessed reads: %d" % total_reads)
                     sys.stderr.flush()
-
-        # collect any last leftover reads
-        # if read_counter > 0:
-        #     get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
-        #     read_counter = 0
-
+        result_queue.put(None)
+        out_writer.join()
         sys.stderr.write("\n\n")
         sys.stderr.write("Basecalling complete!\n\n")
 
@@ -560,11 +590,11 @@ def main():
         sys.stderr.write("skipped {} reads\n".format(len(skipped)))
         sys.stderr.write("\n")
         # close file
-        if len(OUT.keys()) > 1:
-            OUT["pass"].close()
-            OUT["fail"].close()
-        else:
-            OUT["single"].close()
+        # if len(OUT.keys()) > 1:
+        #     OUT["pass"].close()
+        #     OUT["fail"].close()
+        # else:
+        #     OUT["single"].close()
 
     sys.stderr.write("==========================================================================\n  Cleanup\n==========================================================================\n")
     sys.stderr.write("Disconnecting client\n")

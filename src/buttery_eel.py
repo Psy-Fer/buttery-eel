@@ -371,6 +371,8 @@ def main():
                         help="A mean q-score to split fastq/sam files into pass/fail output")
     parser.add_argument("--slow5_threads", type=int, default=4,
                         help="Number of threads to use reading slow5 file")
+    parser.add_argument("--procs", type=int, default=4,
+                        help="Number of worker processes to use processing reads")
     parser.add_argument("--slow5_batchsize", type=int, default=4000,
                         help="Number of reads to process at a time reading slow5")
     parser.add_argument("--quiet", action="store_true",
@@ -522,7 +524,7 @@ def main():
         print(address)
         print(config)
         sub_read = partial(submit_read, address=address, config=config, mods=args.call_mods, qscore_cutoff=args.qscore)
-        with Pool(4) as pool:
+        with Pool(args.procs) as pool:
             # for batch in chain(batches):
             # for read in batch:
             for num, skip, bcalled_list in pool.imap(sub_read, chain(batches)):

@@ -59,8 +59,7 @@ def start_guppy_server_and_client(args, server_args):
         address = "{}".format(port)
     else:
         address = "localhost:{}".format(port)
-    client = PyGuppyClient(address=address, config=args.config, throttle=3)
-
+    client = PyGuppyClient(address=address, config=args.config)
 
 
     sys.stderr.write("Setting params...\n")
@@ -175,9 +174,9 @@ def submit_read(client, read):
                 )
             )
         if tries > 1:
-            time.sleep(1)
+            time.sleep(client.throttle)
         tries += 1
-        if tries >= 5:
+        if tries >= 50:
             if not result:
                 sys.stderr.write("Skipped a read: {}\n".format(read_id))
                 skipped = read_id
@@ -198,7 +197,7 @@ def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
     while done < read_counter:
         bcalled = client.get_completed_reads()
         if not bcalled:
-            time.sleep(0.2)
+            time.sleep(client.throttle)
             continue
         else:
             for call in bcalled:
@@ -376,8 +375,9 @@ def main():
 
         # TODO: add guppy_client_args
         sys.stderr.write("==========================================================================\n  Connecting to server\n==========================================================================\n")
-        sys.stderr.write("Connection status: ")
-        sys.stderr.write("{}".format(client.get_status()))
+        sys.stderr.write("Connection status:\n")
+        sys.stderr.write("status: {}\n".format(client.get_status()))
+        sys.stderr.write("throttle: {}\n".format(client.throttle))
         # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_protocol_version())
         # print(client.get_server_information("127.0.0.1:{}".format(args.port), 10))
@@ -430,8 +430,8 @@ def main():
                 sys.stderr.write("Writing to: {}\n".format(args.output))
         
         s5 = pyslow5.Open(args.input, 'r')
-        # reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
-        reads = s5.seq_reads()
+        # reads = s5.seq_reads()
+        reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
         sys.stderr.write("\n")
 
         # ==========================================================================

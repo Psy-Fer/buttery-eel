@@ -156,8 +156,9 @@ def read_worker(args, iq):
     # reads = s5.seq_reads()
     # TODO: try different combinations for slow5_batchsize and size in the get batches
     reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
-    batch_size = math.ceil(args.slow5_batchsize / args.procs)
-    batches = get_slow5_batch(reads, size=batch_size)
+    # batch_size = math.ceil(args.slow5_batchsize / args.procs)
+    # batches = get_slow5_batch(reads, size=batch_size)
+    batches = get_slow5_batch(reads, size=args.slow5_batchsize)
     for batch in chain(batches):
         iq.put(batch)
     

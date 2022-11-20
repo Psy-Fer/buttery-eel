@@ -159,8 +159,14 @@ def read_worker(args, iq):
     # batch_size = math.ceil(args.slow5_batchsize / args.procs)
     # batches = get_slow5_batch(reads, size=batch_size)
     batches = get_slow5_batch(reads, size=args.slow5_batchsize)
+    max_limit = args.max_read_queue_size
     for batch in chain(batches):
-        iq.put(batch)
+        if iq.qsize() < max_limit:
+            iq.put(batch)
+        else:
+            while iq.qsize() >= max_limit:
+                time.sleep(1)
+            iq.put(batch)
     
     for _ in range(args.procs):
         iq.put(None)
@@ -454,6 +460,8 @@ def main():
                         help="Number of reads to process at a time reading slow5")
     parser.add_argument("--quiet", action="store_true",
                         help="Don't print progress")
+    parser.add_argument("--max_read_queue_size", type=int, default=20000,
+                        help="Number of reads to process at a time reading slow5")
     # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
     # parser.add_argument("-a", "--align_ref",
     #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")

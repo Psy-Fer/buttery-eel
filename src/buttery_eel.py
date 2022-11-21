@@ -161,12 +161,12 @@ def read_worker(args, iq):
     batches = get_slow5_batch(reads, size=args.slow5_batchsize)
     max_limit = int(args.max_read_queue_size / args.slow5_batchsize)
     for batch in chain(batches):
-        print(iq.qsize())
+        # print(iq.qsize())
         if iq.qsize() < max_limit:
             iq.put(batch)
         else:
             while iq.qsize() >= max_limit:
-                print("Sleeping cause qsize")
+                # print("Sleeping cause qsize")
                 time.sleep(1)
             iq.put(batch)
     

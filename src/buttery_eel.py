@@ -20,6 +20,8 @@ import pyguppy_client_lib
 from pyguppy_client_lib.pyclient import PyGuppyClient
 from pyguppy_client_lib import helper_functions
 
+import cProfile, pstats, io
+
 from ._version import __version__
 
 
@@ -148,10 +150,15 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG1))
     OUT.write("{}\n".format(PG2))
 
-def read_worker(args, iq):
+def read_worker(args, iq, profile):
     '''
     single threaded worker to read slow5 (with multithreading)
     '''
+    if profile:
+        pr = cProfile.Profile()
+        pr.enable()
+
+
     s5 = pyslow5.Open(args.input, 'r')
     # reads = s5.seq_reads()
     # TODO: try different combinations for slow5_batchsize and size in the get batches
@@ -172,12 +179,26 @@ def read_worker(args, iq):
     
     for _ in range(args.procs):
         iq.put(None)
+    
+    if profile:
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        with open("read_worker.txt", 'w') as f:
+            print(s.getvalue(), file=f)
 
 
-def write_worker(q, files, SAM_OUT, qscore, call_mods, quiet):
+def write_worker(q, files, SAM_OUT, qscore, call_mods, quiet, profile):
     '''
     single threaded worker to process results queue
     '''
+    if profile:
+        pr = cProfile.Profile()
+        pr.enable()
+
+
     if SAM_OUT:
         if qscore:
             PASS = open(files["pass_file"], 'w') 
@@ -212,6 +233,15 @@ def write_worker(q, files, SAM_OUT, qscore, call_mods, quiet):
         OUT["fail"].close()
     else:
         OUT["single"].close()
+    
+    if profile:
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        with open("write_worker.txt", 'w') as f:
+            print(s.getvalue(), file=f)
 
 def write_output(OUT, fkey, read_id, header, seq, qscore, SAM_OUT, read_qscore, quiet, sam="", mods=False):
     if SAM_OUT:
@@ -232,10 +262,13 @@ def write_output(OUT, fkey, read_id, header, seq, qscore, SAM_OUT, read_qscore, 
 
 
 
-def submit_read(iq, rq, address, config, mods, qscore_cutoff):
+def submit_read(iq, rq, address, config, mods, qscore_cutoff, profile, N):
     """
     submit a read to the basecall server
     """
+    if profile:
+        pr = cProfile.Profile()
+        pr.enable()
     skipped = []
     read_counter = 0
     SPLIT_PASS = False
@@ -326,6 +359,15 @@ def submit_read(iq, rq, address, config, mods, qscore_cutoff):
             rq.put(bcalled_list)
             iq.task_done()
             bcalled_list = []
+    
+    if profile:
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        with open("submit_worker_{}.txt".format(N), 'w') as f:
+            print(s.getvalue(), file=f)
 
 
 # def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
@@ -477,6 +519,8 @@ def main():
     #                     help="signal chunk size, lower this for lower VRAM GPUs")
     # parser.add_argument("-x", "--device", default="auto",
     #                     help="Specify GPU device: 'auto', or 'cuda:<device_id>'")
+    parser.add_argument("--profile", action="store_true",
+                        help="run cProfile on all processes - for debugging benchmarking")
     parser.add_argument("-v", "--version", action='version', version="buttery-eel - wraping guppy for file agnostic basecalling version: {}".format(VERSION),
                         help="Prints version")
     # parser.add_argument("--debug", action="store_true",
@@ -605,13 +649,13 @@ def main():
         input_queue = mp.JoinableQueue()
         result_queue = mp.JoinableQueue()
         processes = []
-        reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
+        reader = mp.Process(target=read_worker, args=(args, input_queue, args.profile), name='read_worker')
         reader.start()
-        out_writer = mp.Process(target=write_worker, args=(result_queue, OUT, SAM_OUT, args.qscore, args.call_mods, args.quiet), name='write_worker')
+        out_writer = mp.Process(target=write_worker, args=(result_queue, OUT, SAM_OUT, args.qscore, args.call_mods, args.quiet, args.profile), name='write_worker')
         out_writer.start()
         skipped = []
         for i in range(args.procs):
-            basecall_worker = mp.Process(target=submit_read, args=(input_queue, result_queue, address, config, args.call_mods, args.qscore), daemon=True, name='write_worker_{}'.format(i))
+            basecall_worker = mp.Process(target=submit_read, args=(input_queue, result_queue, address, config, args.call_mods, args.qscore, args.profile, i), daemon=True, name='write_worker_{}'.format(i))
             basecall_worker.start()
             processes.append(basecall_worker)
 

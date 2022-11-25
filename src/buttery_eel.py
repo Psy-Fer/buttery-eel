@@ -174,7 +174,7 @@ def read_worker(args, iq, profile):
         else:
             while iq.qsize() >= max_limit:
                 # print("Sleeping cause qsize")
-                time.sleep(1)
+                time.sleep(0.01)
             iq.put(batch)
     
     for _ in range(args.procs):

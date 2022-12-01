@@ -59,7 +59,7 @@ def start_guppy_server_and_client(args, server_args):
         address = "{}".format(port)
     else:
         address = "localhost:{}".format(port)
-    client = PyGuppyClient(address=address, config=args.config)
+    client = PyGuppyClient(address=address, config=args.config, move_and_trace_enabled=args.moves_out)
 
 
     sys.stderr.write("Setting params...\n")
@@ -140,11 +140,15 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG2))
 
 
-def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False):
+def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False, moves=False, move_table=None):
     
     if SAM_OUT:
         if mods:
             OUT.write("{}\n".format(sam))
+        elif moves:
+            m = move_table.tolist()
+            move_str = ','.join(map(str, m))
+            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, move_str, read_qscore))
         else:
             OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
     else:
@@ -184,7 +188,7 @@ def submit_read(client, read):
     return result, skipped
 
 
-def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
+def get_reads(client, OUT, SAM_OUT, mods, moves, read_counter, qscore_cutoff):
     """
     Get the reads back from the basecall server after being basecalled
     bcalled object contains 1 or more called reads, which contain various data
@@ -216,6 +220,8 @@ def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
                 qscore = call[0]['datasets']['qstring']
                 # when calling mods, can just output sam_record value
                 # otherwise, write_output will handle unaligned sam with no mods
+                if moves:
+                    move_table = call[0]['datasets']['movement']
                 if mods:
                     try:
                         sam_record = call[0]['metadata']['alignment_sam_record']
@@ -232,7 +238,7 @@ def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
                         out = OUT[1]
                 else:
                     out = OUT
-                write_output(out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods)
+                write_output(out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods, moves=moves, move_table=move_table)
     done = 0
 
 # How we get data out of the model files if they are not provided by the metadata output
@@ -303,6 +309,8 @@ def main():
                         help="Number of reads to process at a time reading slow5")
     parser.add_argument("--quiet", action="store_true",
                         help="Don't print progress")
+    parser.add_argument("--moves_out", action="store_true",
+                        help="output move table (sam format only)")
     # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
     # parser.add_argument("-a", "--align_ref",
     #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
@@ -452,7 +460,7 @@ def main():
                 read_counter += 1
                 total_reads += 1
             if read_counter >= args.guppy_batchsize:
-                get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
+                get_reads(client, OUT, SAM_OUT, args.call_mods, args.moves_out, read_counter, args.qscore)
                 read_counter = 0
             if not args.quiet:
                 sys.stderr.write("\rprocessed reads: %d" % total_reads)
@@ -460,7 +468,7 @@ def main():
 
         # collect any last leftover reads
         if read_counter > 0:
-            get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
+            get_reads(client, OUT, SAM_OUT, args.call_mods, args.moves_out, read_counter, args.qscore)
             read_counter = 0
 
         sys.stderr.write("\n\n")

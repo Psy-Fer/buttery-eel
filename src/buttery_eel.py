@@ -140,7 +140,26 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG2))
 
 
-def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False, moves=False, move_table=None):
+def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False, moves=False, move_table=None, model_stride=None):
+    '''
+
+    add these fields:
+    
+    std::vector<std::string> Read::generate_read_tags() const {
+    // GCC doesn't support <format> yet...
+    std::vector<std::string> tags = {
+        "qs:i:" + std::to_string(static_cast<int>(std::round(utils::mean_qscore_from_qstring(qstring)))),
+        "ns:i:" + std::to_string(num_samples),
+        "ts:i:" + std::to_string(num_trimmed_samples),
+        "mx:i:" + std::to_string(attributes.mux),
+        "ch:i:" + std::to_string(attributes.channel_number),
+        "st:Z:" + attributes.start_time,
+        "rn:i:" + std::to_string(attributes.read_number),
+        "f5:Z:" + attributes.fast5_filename
+    };
+
+    return tags;
+    '''
     
     if SAM_OUT:
         if mods:
@@ -148,7 +167,7 @@ def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam=""
         elif moves:
             m = move_table.tolist()
             move_str = ','.join(map(str, m))
-            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, move_str, read_qscore))
+            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore))
         else:
             OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
     else:
@@ -222,6 +241,7 @@ def get_reads(client, OUT, SAM_OUT, mods, moves, read_counter, qscore_cutoff):
                 # otherwise, write_output will handle unaligned sam with no mods
                 if moves:
                     move_table = call[0]['datasets']['movement']
+                    model_stride = call[0]['metadata']['model_stride']
                 if mods:
                     try:
                         sam_record = call[0]['metadata']['alignment_sam_record']
@@ -238,10 +258,10 @@ def get_reads(client, OUT, SAM_OUT, mods, moves, read_counter, qscore_cutoff):
                         out = OUT[1]
                 else:
                     out = OUT
-                write_output(out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods, moves=moves, move_table=move_table)
+                write_output(out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods, moves=moves, move_table=move_table, model_stride=model_stride)
     done = 0
 
-# How we get data out of the model files if they are not provided by the metadata output
+# How we get data out of the model files if they are not provided by the metadata output    
 
 # def get_model_info(config, guppy_bin):
 #     config = os.path.join(guppy_bin,"../data/", config)

@@ -201,8 +201,8 @@ def write_worker(q, files, SAM_OUT, qscore, call_mods, quiet, profile):
 
     if SAM_OUT:
         if qscore:
-            PASS = open(files["pass_file"], 'w') 
-            FAIL = open(files["fail_file"], 'w')
+            PASS = open(files["pass"], 'w') 
+            FAIL = open(files["fail"], 'w')
             sam_header(PASS)
             sam_header(FAIL)
             OUT = {"pass": PASS, "fail": FAIL}
@@ -212,8 +212,8 @@ def write_worker(q, files, SAM_OUT, qscore, call_mods, quiet, profile):
             OUT = {"single": single}
     else:
         if qscore:
-            PASS = open(files["pass_file"], 'w') 
-            FAIL = open(files["fail_file"], 'w')
+            PASS = open(files["pass"], 'w') 
+            FAIL = open(files["fail"], 'w')
             OUT = {"pass": PASS, "fail": FAIL}
 
         else:

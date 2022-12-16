@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import numpy as np
 
 """
 James M. Ferguson (j.ferguson@garvan.org.au)
@@ -155,11 +156,15 @@ def calculate_qscore(qstring):
     '''
     calculate a qscore from a qstring
     '''
-    x = 0
-    for i in qstring:
-        x += ord(i)
-    avg_qual = x / len(qstring)
-    score = round(avg_qual - 33, 2)
+    # x = 0
+    # for i in qstring:
+    #     x += ord(i)
+    # avg_qual = x / len(qstring)
+    # score = round(avg_qual - 33, 2)
+    # return score
+    qs = (np.array(qstring, 'c').view(np.uint8) - 33)
+    mean_err = np.exp(qs * (-np.log(10) / 10.)).mean()
+    score = -10 * np.log10(max(mean_err, 1e-4))
     return score
 
 def test_read(qscore, score):

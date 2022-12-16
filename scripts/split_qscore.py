@@ -336,12 +336,12 @@ def main():
     total_reads = pass_reads + fail_reads
     pass_fraction = round((pass_reads/total_reads)*100, 2)
 
-    sys.stderr.write("Done!\n\n")
-    sys.stderr.write("~~~ STATS ~~~:\n\n")
-    sys.stderr.write("pass_reads: {}\n".format(pass_reads))
-    sys.stderr.write("fail_reads: {}\n".format(fail_reads))
-    sys.stderr.write("total_reads: {}\n".format(total_reads))
-    sys.stderr.write("pass fraction: {}%\n".format(pass_fraction))
+    sys.stderr.write("Done!\n")
+    print("~~~ STATS ~~~:\n")
+    print("pass_reads: {}".format(pass_reads))
+    print("fail_reads: {}".format(fail_reads))
+    print("total_reads: {}".format(total_reads))
+    print("pass fraction: {}%".format(pass_fraction))
 
     # write out pass/fail files
     # write a summary showing basic statistics of number of reads in each

@@ -156,12 +156,6 @@ def calculate_qscore(qstring):
     '''
     calculate a qscore from a qstring
     '''
-    # x = 0
-    # for i in qstring:
-    #     x += ord(i)
-    # avg_qual = x / len(qstring)
-    # score = round(avg_qual - 33, 2)
-    # return score
     qs = (np.array(qstring, 'c').view(np.uint8) - 33)
     mean_err = np.exp(qs * (-np.log(10) / 10.)).mean()
     score = -10 * np.log10(max(mean_err, 1e-4))
@@ -253,8 +247,8 @@ def main():
         # if fastq, do fastq things
         reads = read_fastq(args.input)
         # create new pass/fail files
-        out_pass = open("{}.pass.fastq".format(args.prefix), 'w')
-        out_fail = open("{}.fail.fastq".format(args.prefix), 'w')
+        out_pass = open("{}/{}.pass.fastq".format(args.output, args.prefix), 'w')
+        out_fail = open("{}/{}.fail.fastq".format(args.output, args.prefix), 'w')
         # process reads
         for read in reads:
             score = find_score(read, ftype)
@@ -271,8 +265,8 @@ def main():
         header = get_header(args.input)
         reads = read_sam(args.input)
         # write new sam files with headers
-        out_pass = open("{}.pass.sam".format(args.prefix), 'w')
-        out_fail = open("{}.fail.sam".format(args.prefix), 'w')
+        out_pass = open("{}/{}.pass.sam".format(args.output, args.prefix), 'w')
+        out_fail = open("{}/{}.fail.sam".format(args.output, args.prefix), 'w')
         # write the sam header for pass and fail
         write_sam_header(out_pass, header)
         write_sam_header(out_fail, header)
@@ -296,8 +290,8 @@ def main():
             sys.exit(1)
         if args.format == "fastq":
             reads = stream_fastq()
-            out_pass = open("{}.pass.fastq".format(args.prefix), 'w')
-            out_fail = open("{}.fail.fastq".format(args.prefix), 'w')
+            out_pass = open("{}/{}.pass.fastq".format(args.output, args.prefix), 'w')
+            out_fail = open("{}/{}.fail.fastq".format(args.output, args.prefix), 'w')
             for read in reads:
                 score = find_score(read, args.format)
                 if score is None:
@@ -310,8 +304,8 @@ def main():
                     fail_reads += 1
         elif args.format == "sam":
             reads = stream_sam()
-            out_pass = open("{}.pass.sam".format(args.prefix), 'w')
-            out_fail = open("{}.fail.sam".format(args.prefix), 'w')
+            out_pass = open("{}/{}.pass.sam".format(args.output, args.prefix), 'w')
+            out_fail = open("{}/{}.fail.sam".format(args.output, args.prefix), 'w')
             # get the header, as first output from generator
             header = next(reads)
             # write the sam header for pass and fail

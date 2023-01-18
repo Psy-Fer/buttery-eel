@@ -1,6 +1,14 @@
 # buttery-eel
+<div style="width: 80%; height: 80%">
+  
+  ![](/docs/buttery-eel-mascot-banner.svg)
+  
+</div>
 
-The buttery eel - A slow5 guppy basecaller wrapper
+
+
+
+## The buttery eel - A slow5 guppy basecaller wrapper
 
 `buttery-eel` is a wrapper for `guppy`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`](https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/) to work.
 

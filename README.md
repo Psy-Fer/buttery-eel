@@ -14,6 +14,7 @@
 
 You can download guppy here: https://community.nanoporetech.com/downloads. An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
 
+The main branch is a simple single-process version (one process to communicate to/from the Guppy client) that works well for HAC and SUP models. If you want performance scaling for multi-GPU setups, especially for FAST basecalling or shorter reads, please use the multi-process version (parallel processes to communicate to/from Guppy client) under the `multiproc` branch.
 
 # Quick start
 

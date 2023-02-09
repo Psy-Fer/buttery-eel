@@ -51,9 +51,9 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
 Usage:
 
     usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--guppy_batchsize GUPPY_BATCHSIZE] [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--slow5_batchsize SLOW5_BATCHSIZE]
-                   [--quiet] [--moves_out] [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING] [--log LOG] [-v]
+                    [--quiet] [--moves_out] [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING] [--log LOG] [--seq_sum] [-v]
 
-    buttery-eel - wrapping guppy for SLOw5 basecalling
+    buttery-eel - wrapping guppy for SLOW5 basecalling
 
     optional arguments:
     -h, --help            show this help message and exit
@@ -79,7 +79,9 @@ Usage:
     --min_score_read_splitting MIN_SCORE_READ_SPLITTING
                             Minimum mid-strand adapter score for reads to be split (default: 50.0)
     --log LOG             guppy log folder path (default: buttery_guppy_logs)
+    --seq_sum             [Experimental] - Write out sequencing_summary.tsv file (default: False)
     -v, --version         Prints version
+
 
 
 

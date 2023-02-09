@@ -314,7 +314,7 @@ def main():
 
     VERSION = __version__
 
-    parser = MyParser(description="buttery-eel - wrapping guppy for file agnostic basecalling",
+    parser = MyParser(description="buttery-eel - wrapping guppy for SLOW5 basecalling",
     epilog="Citation:...",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 

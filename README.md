@@ -1,11 +1,20 @@
 # buttery-eel
+<div style="width: 80%; height: 80%">
+  
+  ![](/docs/buttery-eel-mascot-banner.svg)
+  
+</div>
 
-The buttery eel - A slow5 guppy basecaller wrapper
+
+
+
+## The buttery eel - A slow5 guppy basecaller wrapper
 
 `buttery-eel` is a wrapper for `guppy`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`](https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/) to work.
 
 You can download guppy here: https://community.nanoporetech.com/downloads. An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
 
+The main branch is a simple single-process version (one process to communicate to/from the Guppy client) that works well for HAC and SUP models. If you want performance scaling for multi-GPU setups, especially for FAST basecalling or shorter reads, please use the multi-process version (parallel processes to communicate to/from Guppy client) under the `multiproc` branch.
 
 # Quick start
 

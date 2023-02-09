@@ -396,7 +396,7 @@ def main():
     #                     help="signal chunk size, lower this for lower VRAM GPUs")
     # parser.add_argument("-x", "--device", default="auto",
     #                     help="Specify GPU device: 'auto', or 'cuda:<device_id>'")
-    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wraping guppy for file agnostic basecalling version: {}".format(VERSION),
+    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wraping guppy for SLOW5 basecalling version: {}".format(VERSION),
                         help="Prints version")
     # parser.add_argument("--debug", action="store_true",
     #                     help="Set logging to debug mode")

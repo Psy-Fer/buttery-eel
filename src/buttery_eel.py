@@ -389,7 +389,7 @@ def main():
     parser.add_argument("--log", default="buttery_guppy_logs",
                         help="guppy log folder path")
     parser.add_argument("--seq_sum", action="store_true",
-                        help="[Experimental] - Write out sequencing_summary.tsv file")
+                        help="[Experimental] - Write out sequencing_summary.txt file")
     # parser.add_argument("--max_queued_reads", default="2000",
     #                     help="Number of reads to send to guppy server queue")
     # parser.add_argument("--chunk_size", default="2000",
@@ -513,11 +513,11 @@ def main():
         
         if args.seq_sum:
             if "/" in args.output:
-                SUMMARY = open("{}/sequencing_summary.tsv".format("/".join(args.output.split("/")[:-1])), "w")
-                print("Writing summary file to: {}/sequencing_summary.tsv".format("/".join(args.output.split("/")[:-1])))
+                SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
             else:
-                SUMMARY = open("./sequencing_summary.tsv", "w")
-                print("Writing summary file to: ./sequencing_summary.tsv")
+                SUMMARY = open("./sequencing_summary.txt", "w")
+                print("Writing summary file to: ./sequencing_summary.txt")
 
             SUMMARY_HEADER = "\t".join(["filename_fastq", "filename_slow5", "parent_read_id",
                                         "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",

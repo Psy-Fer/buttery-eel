@@ -47,6 +47,16 @@ def start_guppy_server_and_client(args, server_args):
     if args.do_read_splitting:
         params["do_read_splitting"] = True
         params["min_score_read_splitting"] = args.min_score_read_splitting
+    
+    if args.detect_adapter:
+        params["detect_adapter"] = True
+        params["min_score_adapter"] = args.min_score_adapter
+        
+    if args.detect_mid_strand_adapter:
+        params["detect_mid_strand_adapter"] = True
+
+    if args.trim_adapters:
+        params["trim_adapters"] = True
 
     
     # if args.align_ref:
@@ -93,7 +103,6 @@ def start_guppy_server_and_client(args, server_args):
 #     #     server_args.append(i)
 #     ret = helper_functions.run_server(server_args, bin_path=args.guppy_bin)
 #     return ret
-
 
 def calibration(digitisation, range):
     """
@@ -145,9 +154,9 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG2))
 
 
-def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False, moves=False, move_table=None, model_stride=None):
+def write_output(args, OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False, moves=False, move_table=None, model_stride=None, num_samples=None, trimmed_samples=None):
     '''
-
+    TODO: use args rather than specific args
     add these fields:
     
     std::vector<std::string> Read::generate_read_tags() const {
@@ -172,10 +181,19 @@ def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam=""
         elif moves:
             m = move_table.tolist()
             move_str = ','.join(map(str, m))
-            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore))
+            if args.do_read_splitting:
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore))
+            else:
+                # do ns and ts tags
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore, num_samples, trimmed_samples))
         else:
-            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
+            if args.do_read_splitting:
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
+            else:
+                # do ns and ts tags
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, seq, qscore, read_qscore, num_samples, trimmed_samples))
     else:
+        # write fastq
         OUT.write("{}\n".format(header))
         OUT.write("{}\n".format(seq))
         OUT.write("+\n")
@@ -217,7 +235,7 @@ def submit_read(client, read):
     return result, skipped
 
 
-def get_reads(client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qscore_cutoff, header_array, read_groups, aux_data, filename_slow5):
+def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qscore_cutoff, header_array, read_groups, aux_data, filename_slow5):
     """
     Get the reads back from the basecall server after being basecalled
     bcalled object contains 1 or more called reads, which contain various data
@@ -276,6 +294,17 @@ def get_reads(client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qscore_c
                     else:
                         out = OUT
                     
+                    if args.do_read_splitting:
+                        num_samples = None
+                        trimmed_samples = None
+                    else:
+                        raw_num_samples = len(call['datasets']['raw_data'])
+                        trimmed_samples = call['metadata']['trimmed_samples']
+                        trimmed_duration = call['metadata']['trimmed_duration']
+                        num_samples = trimmed_duration + trimmed_samples
+                        if num_samples != raw_num_samples:
+                            print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(read_id, num_samples, raw_num_samples))
+                    
                     # create summary data
                     if SUMMARY is not None:
                         read_group = read_groups[parent_read_id]
@@ -304,7 +333,7 @@ def get_reads(client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qscore_c
                         # write the data
                         write_summary(SUMMARY, sum_out)
                     
-                    write_output(out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods, moves=moves, move_table=move_table, model_stride=model_stride)
+                    write_output(args, out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods, moves=moves, move_table=move_table, model_stride=model_stride, num_samples=num_samples, trimmed_samples=trimmed_samples)
     done = 0
 
 # How we get data out of the model files if they are not provided by the metadata output    
@@ -381,6 +410,14 @@ def main():
                         help="Perform read splitting based on mid-strand adapter detection")
     parser.add_argument("--min_score_read_splitting", type=float, default=50.0,
                         help="Minimum mid-strand adapter score for reads to be split")
+    parser.add_argument("--detect_adapter", action="store_true",
+                        help="Enable detection of adapters at the front and rear of the sequence")
+    parser.add_argument("--min_score_adapter", type=float, default=60.0,
+                        help="Minimum score for a front or rear adapter to be classified. Default is 60.")
+    parser.add_argument("--trim_adapters", action="store_true",
+                        help="Flag indicating that adapters should be trimmed. Default is False.")
+    parser.add_argument("--detect_mid_strand_adapter", action="store_true",
+                        help="Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.")
     # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
     # parser.add_argument("-a", "--align_ref",
     #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
@@ -579,7 +616,7 @@ def main():
                 read_counter += 1
                 total_reads += 1
             if read_counter >= args.guppy_batchsize:
-                get_reads(client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
+                get_reads(args, client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
                 read_counter = 0
                 aux_data = {}
                 read_groups = {}
@@ -589,7 +626,7 @@ def main():
 
         # collect any last leftover reads
         if read_counter > 0:
-            get_reads(client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
+            get_reads(args, client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
             read_counter = 0
 
         print()

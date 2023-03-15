@@ -269,7 +269,7 @@ def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qs
                     int_read_qscore = int(read_qscore)
                     # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
                     # model_version_id = get_model_info(args.config, args.guppy_bin)
-                    header = "@{} parent_read_id=@{} model_version_id={} mean_qscore={}".format(read_id, parent_read_id, call['metadata']['model_version_id'], int_read_qscore)
+                    header = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(read_id, parent_read_id, call['metadata']['model_version_id'], int_read_qscore)
                     sequence = call['datasets']['sequence']
                     qscore = call['datasets']['qstring']
                     # when calling mods, can just output sam_record value

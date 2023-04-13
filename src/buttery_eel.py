@@ -44,6 +44,21 @@ def start_guppy_server_and_client(args, server_args):
     if args.call_mods:
         params["move_and_trace_enabled"] = True
     
+    if args.do_read_splitting:
+        params["do_read_splitting"] = True
+        params["min_score_read_splitting"] = args.min_score_read_splitting
+    
+    if args.detect_adapter:
+        params["detect_adapter"] = True
+        params["min_score_adapter"] = args.min_score_adapter
+        
+    if args.detect_mid_strand_adapter:
+        params["detect_mid_strand_adapter"] = True
+
+    if args.trim_adapters:
+        params["trim_adapters"] = True
+
+    
     # if args.align_ref:
     #     server_args.extend(["--align_ref", args.align_ref])
     #     params["align_ref"] = args.align_ref
@@ -59,13 +74,12 @@ def start_guppy_server_and_client(args, server_args):
         address = "{}".format(port)
     else:
         address = "localhost:{}".format(port)
-    client = PyGuppyClient(address=address, config=args.config, throttle=3)
+    client = PyGuppyClient(address=address, config=args.config, move_and_trace_enabled=args.moves_out)
 
 
-
-    sys.stderr.write("Setting params...\n")
+    print("Setting params...")
     client.set_params(params)
-    sys.stderr.write("Connecting...\n")
+    print("Connecting...")
     try:
         with client:
             yield client
@@ -89,7 +103,6 @@ def start_guppy_server_and_client(args, server_args):
 #     #     server_args.append(i)
 #     ret = helper_functions.run_server(server_args, bin_path=args.guppy_bin)
 #     return ret
-
 
 def calibration(digitisation, range):
     """
@@ -141,19 +154,56 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG2))
 
 
-def write_output(OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False):
+def write_output(args, OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False, moves=False, move_table=None, model_stride=None, num_samples=None, trimmed_samples=None):
+    '''
+    TODO: use args rather than specific args
+    add these fields:
+    
+    std::vector<std::string> Read::generate_read_tags() const {
+    // GCC doesn't support <format> yet...
+    std::vector<std::string> tags = {
+        "qs:i:" + std::to_string(static_cast<int>(std::round(utils::mean_qscore_from_qstring(qstring)))),
+        "ns:i:" + std::to_string(num_samples),
+        "ts:i:" + std::to_string(num_trimmed_samples),
+        "mx:i:" + std::to_string(attributes.mux),
+        "ch:i:" + std::to_string(attributes.channel_number),
+        "st:Z:" + attributes.start_time,
+        "rn:i:" + std::to_string(attributes.read_number),
+        "f5:Z:" + attributes.fast5_filename
+    };
+
+    return tags;
+    '''
     
     if SAM_OUT:
         if mods:
             OUT.write("{}\n".format(sam))
+        elif moves:
+            m = move_table.tolist()
+            move_str = ','.join(map(str, m))
+            if args.do_read_splitting:
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore))
+            else:
+                # do ns and ts tags
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore, num_samples, trimmed_samples))
         else:
-            OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
+            if args.do_read_splitting:
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
+            else:
+                # do ns and ts tags
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, seq, qscore, read_qscore, num_samples, trimmed_samples))
     else:
+        # write fastq
         OUT.write("{}\n".format(header))
         OUT.write("{}\n".format(seq))
         OUT.write("+\n")
         OUT.write("{}\n".format(qscore))
 
+def write_summary(summary, data):
+    """
+    write summary file output
+    """
+    summary.write("{}\n".format(data))
 
 def submit_read(client, read):
     """
@@ -175,22 +225,25 @@ def submit_read(client, read):
                 )
             )
         if tries > 1:
-            time.sleep(1)
+            time.sleep(client.throttle)
         tries += 1
-        if tries >= 5:
+        if tries >= 1000:
             if not result:
-                sys.stderr.write("Skipped a read: {}\n".format(read_id))
+                print("Skipped a read: {}".format(read_id))
                 skipped = read_id
                 break
     return result, skipped
 
 
-def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
+def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qscore_cutoff, header_array, read_groups, aux_data, filename_slow5):
     """
     Get the reads back from the basecall server after being basecalled
     bcalled object contains 1 or more called reads, which contain various data
     """
     SPLIT_PASS = False
+    move_table = None
+    model_stride = None
+    passes_filtering = "-"
     if qscore_cutoff:
         SPLIT_PASS = True
         qs_cutoff = float(qscore_cutoff)
@@ -198,45 +251,92 @@ def get_reads(client, OUT, SAM_OUT, mods, read_counter, qscore_cutoff):
     while done < read_counter:
         bcalled = client.get_completed_reads()
         if not bcalled:
-            time.sleep(0.2)
+            time.sleep(client.throttle)
             continue
         else:
-            for call in bcalled:
+            for calls in bcalled:
                 sam_record = ""
                 done += 1
-                if len(call) != 1:
-                    # possible split reads?
-                    sys.stderr.write("Call is longer than 1: {}\n".format(len(call)))
-                read_id = call[0]['metadata']['read_id']
-                read_qscore = call[0]['metadata']['mean_qscore']
-                int_read_qscore = int(read_qscore)
-                # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
-                # model_version_id = get_model_info(args.config, args.guppy_bin)
-                header = "@{} model_version_id={} mean_qscore={}".format(call[0]['metadata']['read_id'], call[0]['metadata']['model_version_id'], int_read_qscore)
-                sequence = call[0]['datasets']['sequence']
-                qscore = call[0]['datasets']['qstring']
-                # when calling mods, can just output sam_record value
-                # otherwise, write_output will handle unaligned sam with no mods
-                if mods:
-                    try:
-                        sam_record = call[0]['metadata']['alignment_sam_record']
-                    except:
-                        # TODO: add warning that mods model not being used, and exit
-                        sam_record = ""
-                        mods = False
-                if SPLIT_PASS:
-                    if read_qscore >= qs_cutoff:
-                        # pass
-                        out = OUT[0]
+                split_reads = False
+                if len(calls) > 1:
+                    split_reads = True
+                for call in calls:
+                    read_id = call['metadata']['read_id']
+                    parent_read_id = read_id
+                    if split_reads:
+                        read_id = call['metadata']['strand_id']
+                    read_qscore = call['metadata']['mean_qscore']
+                    int_read_qscore = int(read_qscore)
+                    # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
+                    # model_version_id = get_model_info(args.config, args.guppy_bin)
+                    header = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(read_id, parent_read_id, call['metadata']['model_version_id'], int_read_qscore)
+                    sequence = call['datasets']['sequence']
+                    qscore = call['datasets']['qstring']
+                    # when calling mods, can just output sam_record value
+                    # otherwise, write_output will handle unaligned sam with no mods
+                    if moves:
+                        move_table = call['datasets']['movement']
+                        model_stride = call['metadata']['model_stride']
+                    if mods:
+                        try:
+                            sam_record = call['metadata']['alignment_sam_record']
+                        except:
+                            # TODO: add warning that mods model not being used, and exit
+                            sam_record = ""
+                            mods = False
+                    if SPLIT_PASS:
+                        if read_qscore >= qs_cutoff:
+                            # pass
+                            out = OUT[0]
+                        else:
+                            # fail
+                            out = OUT[1]
                     else:
-                        # fail
-                        out = OUT[1]
-                else:
-                    out = OUT
-                write_output(out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods)
+                        out = OUT
+                    
+                    if args.do_read_splitting:
+                        num_samples = None
+                        trimmed_samples = None
+                    else:
+                        raw_num_samples = len(call['datasets']['raw_data'])
+                        trimmed_samples = call['metadata']['trimmed_samples']
+                        trimmed_duration = call['metadata']['trimmed_duration']
+                        num_samples = trimmed_duration + trimmed_samples
+                        if num_samples != raw_num_samples:
+                            print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(read_id, num_samples, raw_num_samples))
+                    
+                    # create summary data
+                    if SUMMARY is not None:
+                        read_group = read_groups[parent_read_id]
+                        minknow_events = call['metadata']['num_minknow_events']
+                        duration = call['metadata']['duration']
+                        num_events = call['metadata']['num_events']
+                        median = round(call['metadata']['median'], 6)
+                        med_abs_dev = round(call['metadata']['med_abs_dev'], 6)
+                        pore_type = header_array[read_group]['pore_type']
+                        experiment_id = header_array[read_group]['protocol_group_id']
+                        run_id = header_array[read_group]["run_id"]
+                        sample_id = header_array[read_group]["sample_id"]
+                        strand_score_template = round(call['metadata']['call_score'], 6)
+                        sequence_length = call['metadata']['sequence_length']
+                        channel = aux_data[parent_read_id]['channel_number']
+                        mux = aux_data[parent_read_id]['start_mux']
+                        start_time = aux_data[parent_read_id]['start_time']
+                        end_reason_val = aux_data[parent_read_id]['end_reason']
+                        end_reason = aux_data[parent_read_id]['end_reason_labels'][end_reason_val]
+                        output_name = out.name.split("/")[-1]
+                        sum_out = "\t".join([str(i) for i in  [output_name, filename_slow5, parent_read_id, read_id, run_id, channel, mux, minknow_events,
+                                start_time, duration, passes_filtering, "-", num_events, "-",
+                                sequence_length, read_qscore, strand_score_template, median, med_abs_dev, pore_type,
+                                experiment_id, sample_id, end_reason]])
+                        
+                        # write the data
+                        write_summary(SUMMARY, sum_out)
+                    
+                    write_output(args, out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods, moves=moves, move_table=move_table, model_stride=model_stride, num_samples=num_samples, trimmed_samples=trimmed_samples)
     done = 0
 
-# How we get data out of the model files if they are not provided by the metadata output
+# How we get data out of the model files if they are not provided by the metadata output    
 
 # def get_model_info(config, guppy_bin):
 #     config = os.path.join(guppy_bin,"../data/", config)
@@ -278,7 +378,7 @@ def main():
 
     VERSION = __version__
 
-    parser = MyParser(description="buttery-eel - wrapping guppy for file agnostic basecalling",
+    parser = MyParser(description="buttery-eel - wrapping guppy for SLOW5 basecalling",
     epilog="Citation:...",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -292,10 +392,32 @@ def main():
                         help="path to ont_guppy/bin folder")
     parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                         help="basecalling model config")
+    parser.add_argument("--guppy_batchsize", type=int, default=4000,
+                        help="number of reads to send to guppy at a time.")
     parser.add_argument("--call_mods", action="store_true",
                         help="output MM/ML tags for methylation - will output sam - use with appropriate mod config")
     parser.add_argument("-q", "--qscore", type=int,
                         help="A mean q-score to split fastq/sam files into pass/fail output")
+    parser.add_argument("--slow5_threads", type=int, default=4,
+                        help="Number of threads to use reading slow5 file")
+    parser.add_argument("--slow5_batchsize", type=int, default=4000,
+                        help="Number of reads to process at a time reading slow5")
+    parser.add_argument("--quiet", action="store_true",
+                        help="Don't print progress")
+    parser.add_argument("--moves_out", action="store_true",
+                        help="output move table (sam format only)")
+    parser.add_argument("--do_read_splitting", action="store_true",
+                        help="Perform read splitting based on mid-strand adapter detection")
+    parser.add_argument("--min_score_read_splitting", type=float, default=50.0,
+                        help="Minimum mid-strand adapter score for reads to be split")
+    parser.add_argument("--detect_adapter", action="store_true",
+                        help="Enable detection of adapters at the front and rear of the sequence")
+    parser.add_argument("--min_score_adapter", type=float, default=60.0,
+                        help="Minimum score for a front or rear adapter to be classified. Default is 60.")
+    parser.add_argument("--trim_adapters", action="store_true",
+                        help="Flag indicating that adapters should be trimmed. Default is False.")
+    parser.add_argument("--detect_mid_strand_adapter", action="store_true",
+                        help="Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.")
     # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
     # parser.add_argument("-a", "--align_ref",
     #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
@@ -303,13 +425,15 @@ def main():
     #                     help="port to use between server/client")
     parser.add_argument("--log", default="buttery_guppy_logs",
                         help="guppy log folder path")
+    parser.add_argument("--seq_sum", action="store_true",
+                        help="[Experimental] - Write out sequencing_summary.txt file")
     # parser.add_argument("--max_queued_reads", default="2000",
     #                     help="Number of reads to send to guppy server queue")
     # parser.add_argument("--chunk_size", default="2000",
     #                     help="signal chunk size, lower this for lower VRAM GPUs")
     # parser.add_argument("-x", "--device", default="auto",
     #                     help="Specify GPU device: 'auto', or 'cuda:<device_id>'")
-    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wraping guppy for file agnostic basecalling version: {}".format(VERSION),
+    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wraping guppy for SLOW5 basecalling version: {}".format(VERSION),
                         help="Prints version")
     # parser.add_argument("--debug", action="store_true",
     #                     help="Set logging to debug mode")
@@ -323,10 +447,10 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    sys.stderr.write("\n")
-    sys.stderr.write("               ~  buttery-eel - SLOW5 Guppy Basecalling  ~\n")
-    sys.stderr.write("==========================================================================\n  ARGS\n==========================================================================\n")
-    sys.stderr.write("args:\n {}\n{}\n".format(args, other_server_args))
+    print()
+    print("               ~  buttery-eel - SLOW5 Guppy Basecalling  ~")
+    print("==========================================================================\n  ARGS\n==========================================================================")
+    print("args:\n {}\n{}".format(args, other_server_args))
 
     # guppy_server_args = None
     # guppy_client_args = None
@@ -343,9 +467,9 @@ def main():
         elif major == check_major:
             if minor < check_minor:
                 check = False
-        sys.stderr.write("\n")
-        sys.stderr.write("MOD CALLING VERSION CHECK: >6.3.0? {}\n".format(check))
-        sys.stderr.write("\n")
+        print()
+        print("MOD CALLING VERSION CHECK: >6.3.0? {}".format(check))
+        print()
         if not check:
             sys.stderr.write("ERROR: Please use guppy and ont-pyguppy-client-lib version 6.3.0 or higher for modification calling\n")
             sys.stderr.write("\n")
@@ -354,12 +478,13 @@ def main():
     # ==========================================================================
     # Start guppy_basecall_server
     # ==========================================================================
-    sys.stderr.write("\n\n")
-    sys.stderr.write("==========================================================================\n  Starting Guppy Basecalling Server\n==========================================================================\n")
+    print()
+    print()
+    print("==========================================================================\n  Starting Guppy Basecalling Server\n==========================================================================")
     with start_guppy_server_and_client(args, other_server_args) as client:
         print(client)
-        sys.stderr.write("guppy_basecall_server started...\n")
-        sys.stderr.write("\n")
+        print("guppy_basecall_server started...")
+        print()
 
 
         # ==========================================================================
@@ -367,22 +492,24 @@ def main():
         # ==========================================================================
 
         # TODO: add guppy_client_args
-        sys.stderr.write("==========================================================================\n  Connecting to server\n==========================================================================\n")
-        sys.stderr.write("Connection status: ")
-        sys.stderr.write("{}".format(client.get_status()))
+        print("==========================================================================\n  Connecting to server\n==========================================================================")
+        print("Connection status:")
+        print("status: {}".format(client.get_status()))
+        print("throttle: {}".format(client.throttle))
         # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_protocol_version())
         # print(client.get_server_information("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_software_version())
 
-        sys.stderr.write("\n\n")
+        print()
+        print()
 
         # ==========================================================================
         # Read signal file
         # ==========================================================================
-        sys.stderr.write("==========================================================================\n  Files\n==========================================================================\n")
-        sys.stderr.write("Reading from: {}\n".format(args.input))
-        # sys.stderr.write("Writing to: {}\n".format(args.output))
+        print("==========================================================================\n  Files\n==========================================================================")
+        print("Reading from: {}".format(args.input))
+        # print("Writing to: {}".format(args.output))
         if args.call_mods or args.output.split(".")[-1]=="sam":
             SAM_OUT = True
             if args.qscore:
@@ -396,12 +523,12 @@ def main():
                 OUT = (PASS, FAIL)
                 sam_header(PASS)
                 sam_header(FAIL)
-                sys.stderr.write("Writing to: {}\n".format(pass_file))
-                sys.stderr.write("Writing to: {}\n".format(fail_file))
+                print("Writing to: {}".format(pass_file))
+                print("Writing to: {}".format(fail_file))
             else:
                 OUT = open(args.output, 'w')
                 sam_header(OUT)
-                sys.stderr.write("Writing to: {}\n".format(args.output))
+                print("Writing to: {}".format(args.output))
         else:
             # TODO: check output ends in .fastq
             # if args.output.split(".")[-1] not in ["fastq", "fq"]:
@@ -415,26 +542,72 @@ def main():
                 PASS = open(pass_file, 'w') 
                 FAIL = open(fail_file, 'w')
                 OUT = (PASS, FAIL)
-                sys.stderr.write("Writing to: {}\n".format(pass_file))
-                sys.stderr.write("Writing to: {}\n".format(fail_file))
+                print("Writing to: {}".format(pass_file))
+                print("Writing to: {}".format(fail_file))
             else:
                 OUT = open(args.output, 'w')
-                sys.stderr.write("Writing to: {}\n".format(args.output))
+                print("Writing to: {}".format(args.output))
         
+        if args.seq_sum:
+            if "/" in args.output:
+                SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
+            else:
+                SUMMARY = open("./sequencing_summary.txt", "w")
+                print("Writing summary file to: ./sequencing_summary.txt")
+
+            SUMMARY_HEADER = "\t".join(["filename_fastq", "filename_slow5", "parent_read_id",
+                                        "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
+                                        "passes_filtering", "template_start", "num_events_template", "template_duration",
+                                        "sequence_length_template", "mean_qscore_template", "strand_score_template",
+                                        "median_template", "mad_template", "pore_type", "experiment_id", "sample_id", "end_reason"])
+            write_summary(SUMMARY, SUMMARY_HEADER)
+        
+        else:
+            SUMMARY = None
+        
+        filename_slow5 = args.input.split("/")[-1]
         s5 = pyslow5.Open(args.input, 'r')
-        reads = s5.seq_reads()
-        sys.stderr.write("\n")
+        # reads = s5.seq_reads()
+        if args.seq_sum:
+            reads = s5.seq_reads_multi(aux='all', threads=args.slow5_threads, batchsize=args.slow5_batchsize)
+        else:
+            reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
+
+        print()
 
         # ==========================================================================
         # Process reads and send to basecall server
         # ==========================================================================
-        sys.stderr.write("==========================================================================\n  Basecalling\n==========================================================================\n")
-        sys.stderr.write("\n")
+        print("==========================================================================\n  Basecalling\n==========================================================================")
+        print()
 
         total_reads = 0
         read_counter = 0
         skipped = []
+        header_array = {}
+        aux_data = {}
+        read_groups = {}
         for read in reads:
+            if args.seq_sum:
+                # get header once for each read group
+                read_group = read["read_group"]
+                if read_group not in header_array:
+                    header_array[read_group] = s5.get_all_headers(read_group=read_group)
+                # get aux data for ead read
+                readID = read["read_id"]
+                read_groups[readID] = read_group
+                
+
+                aux_data[readID] = {"channel_number": read["channel_number"], 
+                                    "start_mux": read["start_mux"],
+                                    "start_time": read["start_time"],
+                                    "read_number": read["read_number"],
+                                    "end_reason": read["end_reason"],
+                                    "median_before": read["median_before"],
+                                    "end_reason_labels": s5.get_aux_enum_labels('end_reason')
+                                    }
+            
             res, skip = submit_read(client, read)
             if not res:
                 skipped.append(skip)
@@ -442,39 +615,45 @@ def main():
             else:
                 read_counter += 1
                 total_reads += 1
-            if read_counter >= 1000:
-                get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
+            if read_counter >= args.guppy_batchsize:
+                get_reads(args, client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
                 read_counter = 0
-            sys.stderr.write("\rprocessed reads: %d" % total_reads)
-            sys.stderr.flush()
+                aux_data = {}
+                read_groups = {}
+            if not args.quiet:
+                sys.stdout.write("\rprocessed reads: %d" % total_reads)
+                sys.stdout.flush()
 
         # collect any last leftover reads
         if read_counter > 0:
-            get_reads(client, OUT, SAM_OUT, args.call_mods, read_counter, args.qscore)
+            get_reads(args, client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
             read_counter = 0
 
-        sys.stderr.write("\n\n")
-        sys.stderr.write("Basecalling complete!\n\n")
+        print()
+        print()
+        print("Basecalling complete!")
 
         # ==========================================================================
         # Finish up, close files, disconnect client and terminate server
         # ==========================================================================
-        sys.stderr.write("\n")
-        sys.stderr.write("==========================================================================\n  Summary\n==========================================================================\n")
-        sys.stderr.write("Processed {} reads\n".format(total_reads))
-        sys.stderr.write("skipped {} reads\n".format(len(skipped)))
-        sys.stderr.write("\n")
+        print()
+        print("==========================================================================\n  Summary\n==========================================================================")
+        print("Processed {} reads".format(total_reads))
+        print("skipped {} reads".format(len(skipped)))
+        print()
         # close file
         if type(OUT) == tuple:
             OUT[0].close()
             OUT[1].close()
         else:
             OUT.close()
+        if args.seq_sum:
+            SUMMARY.close()
 
-    sys.stderr.write("==========================================================================\n  Cleanup\n==========================================================================\n")
-    sys.stderr.write("Disconnecting client\n")
-    sys.stderr.write("Disconnecting server\n")
-    sys.stderr.write("Done\n")
+    print("==========================================================================\n  Cleanup\n==========================================================================")
+    print("Disconnecting client")
+    print("Disconnecting server")
+    print("Done")
 
 if __name__ == '__main__':
     main()

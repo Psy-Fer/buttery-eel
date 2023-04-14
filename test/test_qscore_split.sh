@@ -61,8 +61,10 @@ PORT=$(get_port)
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
     die "Memory usage is too high: $MEM"
+else
+    echo "Memory usage is OK: $MEM"
 fi
-
+cat eel.log
 ${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP%.*}.pass.fastq | cut -f 2-> ${EEL_OUT_TMP}.identity
 
 echo "Comparing results"

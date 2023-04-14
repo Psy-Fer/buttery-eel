@@ -57,13 +57,15 @@ ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.fastq | cut -f 2- >  ${
 
 echo "Running buttery-eel"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP} --port ${PORT}   --use_tcp ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP} --port ${PORT}  --use_tcp ${OPTS_EEL} &> eel.log
+cat eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
     die "Memory usage is too high: $MEM"
+else
+    echo "Memory usage is OK: $MEM"
 fi
 ${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP}  | cut -f 2-> ${EEL_OUT_TMP}.identity
-
 
 echo "Comparing results"
 diff ${GUPPY_OUT_TMP}/reads_tmp.identity ${EEL_OUT_TMP}.identity || die "Results differ"

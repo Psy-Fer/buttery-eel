@@ -24,6 +24,7 @@ from ._version import __version__
 
 
 total_reads = 0
+div = 50
 skipped = 0
 
 
@@ -188,7 +189,6 @@ def read_worker(args, iq):
                             iq.put(batch)
                         else:
                             while iq.qsize() >= max_limit:
-                                # print("Sleeping cause qsize")
                                 time.sleep(0.01)
                             iq.put(batch)
         
@@ -206,10 +206,8 @@ def read_worker(args, iq):
                 iq.put(batch)
             else:
                 while iq.qsize() >= max_limit:
-                    # print("Sleeping cause qsize")
                     time.sleep(0.01)
                 iq.put(batch)
-    
     for _ in range(args.procs):
         iq.put(None)
     
@@ -252,7 +250,6 @@ def write_worker(args, q, files, SAM_OUT):
         else:
             single = open(files["single"], 'w')
             OUT = {"single": single}
-    
     while True:
         bcalled_list = []
         bcalled_list = q.get()
@@ -312,11 +309,16 @@ def write_output(args, read, OUT, SAM_OUT):
         OUT.write("+\n")
         OUT.write("{}\n".format(read["qscore"]))
     global total_reads
+    global div
     total_reads += 1
     if not args.quiet:
-        if total_reads % 100 == 0:
+        if total_reads % div == 0:
             print("processed reads: %d" % total_reads)
             sys.stdout.flush()
+        # don't make div larger than 500K
+        if total_reads >= div*10 and div <= 50000:
+            div = div*10
+
 
 
 
@@ -564,7 +566,12 @@ def main():
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
-
+    
+    if args.slow5_batchsize > args.max_read_queue_size:
+        print("slow5_batchsize > max_read_queue_size, please alter args so max_read_queue_size is the larger value")
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    
     print()
     print("               ~  buttery-eel - SLOW5 Guppy Basecalling  ~")
     print("==========================================================================\n  ARGS\n==========================================================================")

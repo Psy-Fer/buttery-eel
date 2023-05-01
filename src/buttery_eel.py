@@ -243,7 +243,6 @@ def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qs
     SPLIT_PASS = False
     move_table = None
     model_stride = None
-    passes_filtering = "-"
     if qscore_cutoff:
         SPLIT_PASS = True
         qs_cutoff = float(qscore_cutoff)
@@ -288,11 +287,14 @@ def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qs
                         if read_qscore >= qs_cutoff:
                             # pass
                             out = OUT[0]
+                            passes_filtering = "TRUE"
                         else:
                             # fail
                             out = OUT[1]
+                            passes_filtering = "FALSE"
                     else:
                         out = OUT
+                        passes_filtering = "-"
                     
                     if args.do_read_splitting:
                         num_samples = None

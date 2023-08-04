@@ -385,48 +385,54 @@ def submit_read(args, iq, rq, address, config, params, N):
                         if len(calls) > 1:
                             split_reads = True
                         for call in calls:
-                            bcalled_read = {}
-                            bcalled_read["sam_record"] = ""
-                            read_id = call['metadata']['read_id']
-                            bcalled_read["parent_read_id"] = read_id
-                            if split_reads:
-                                bcalled_read["read_id"] = call['metadata']['strand_id']
-                            else:
-                                bcalled_read["read_id"] = read_id
-                            bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
-                            bcalled_read["int_read_qscore"] = int(call['metadata']['mean_qscore'])
-                            bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(read_id, bcalled_read["parent_read_id"], call['metadata']['model_version_id'], bcalled_read["int_read_qscore"])
-                            bcalled_read["sequence"] = call['datasets']['sequence']
-                            bcalled_read["qscore"] = call['datasets']['qstring']
-                            if args.moves_out:
-                                bcalled_read["move_table"] = call['datasets']['movement']
-                                bcalled_read["model_stride"] = call['metadata']['model_stride']
-                            if args.call_mods:
-                                try:
-                                    bcalled_read["sam_record"] = call['metadata']['alignment_sam_record']
-                                except:
-                                    # TODO: add warning that mods model not being used, and exit
-                                    bcalled_read["sam_record"] = ""
-                            if args.do_read_splitting:
-                                bcalled_read["num_samples"] = None
-                                bcalled_read["trimmed_samples"] = None
-                            else:
-                                raw_num_samples = len(call['datasets']['raw_data'])
-                                bcalled_read["trimmed_samples"] = call['metadata']['trimmed_samples']
-                                trimmed_duration = call['metadata']['trimmed_duration']
-                                bcalled_read["num_samples"] = trimmed_duration + bcalled_read["trimmed_samples"]
-                                if bcalled_read["num_samples"] != raw_num_samples:
-                                    print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(read_id, bcalled_read["num_samples"], raw_num_samples))
-                            if SPLIT_PASS:
-                                if bcalled_read["read_qscore"] >= qs_cutoff:
-                                    # pass
-                                    bcalled_read["out"] = "pass"
+                            try:
+                                bcalled_read = {}
+                                bcalled_read["sam_record"] = ""
+                                read_id = call['metadata']['read_id']
+                                bcalled_read["parent_read_id"] = read_id
+                                if split_reads:
+                                    bcalled_read["read_id"] = call['metadata']['strand_id']
                                 else:
-                                    # fail
-                                    bcalled_read["out"] = "fail"
-                            else:
-                                bcalled_read["out"] = "single"
-                            bcalled_list.append(bcalled_read)
+                                    bcalled_read["read_id"] = read_id
+                                bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
+                                bcalled_read["int_read_qscore"] = int(call['metadata']['mean_qscore'])
+                                bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(read_id, bcalled_read["parent_read_id"], call['metadata']['model_version_id'], bcalled_read["int_read_qscore"])
+                                bcalled_read["sequence"] = call['datasets']['sequence']
+                                bcalled_read["qscore"] = call['datasets']['qstring']
+                                if args.moves_out:
+                                    bcalled_read["move_table"] = call['datasets']['movement']
+                                    bcalled_read["model_stride"] = call['metadata']['model_stride']
+                                if args.call_mods:
+                                    try:
+                                        bcalled_read["sam_record"] = call['metadata']['alignment_sam_record']
+                                    except:
+                                        # TODO: add warning that mods model not being used, and exit
+                                        bcalled_read["sam_record"] = ""
+                                if args.do_read_splitting:
+                                    bcalled_read["num_samples"] = None
+                                    bcalled_read["trimmed_samples"] = None
+                                else:
+                                    raw_num_samples = len(call['datasets']['raw_data'])
+                                    bcalled_read["trimmed_samples"] = call['metadata']['trimmed_samples']
+                                    trimmed_duration = call['metadata']['trimmed_duration']
+                                    bcalled_read["num_samples"] = trimmed_duration + bcalled_read["trimmed_samples"]
+                                    if bcalled_read["num_samples"] != raw_num_samples:
+                                        print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(read_id, bcalled_read["num_samples"], raw_num_samples))
+                                if SPLIT_PASS:
+                                    if bcalled_read["read_qscore"] >= qs_cutoff:
+                                        # pass
+                                        bcalled_read["out"] = "pass"
+                                    else:
+                                        # fail
+                                        bcalled_read["out"] = "fail"
+                                else:
+                                    bcalled_read["out"] = "single"
+                                bcalled_list.append(bcalled_read)
+                            except Exception as error:
+                                # handle the exception
+                                print("An exception occurred:", type(error).__name__, "-", error)
+                                sys.exit(1)
+
                     
             read_counter = 0
             done = 0

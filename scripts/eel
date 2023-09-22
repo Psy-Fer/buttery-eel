@@ -42,7 +42,7 @@ REALPATH=$(dirname "$(readlink -f "$0")")
 test -z ${REALPATH} && echo "REALPATH could not be deduced" && exit 1
 source ${REALPATH}/../venv3/bin/activate || { echo "${REALPATH}/../venv3 could not be activated" && exit 1; }
 get_free_port
-eel "$@" --port ${PORT} --use_tcp
+buttery-eel "$@" --port ${PORT} --use_tcp
 exit_code=$?
 deactivate
 exit "$exit_code"

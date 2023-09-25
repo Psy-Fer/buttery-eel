@@ -1,11 +1,20 @@
 # buttery-eel
+<div style="width: 80%; height: 80%">
+  
+  ![](/docs/buttery-eel-mascot-banner.svg)
+  
+</div>
 
-The buttery eel - A slow5 guppy basecaller wrapper
+
+
+
+## The buttery eel - A slow5 guppy basecaller wrapper
 
 `buttery-eel` is a wrapper for `guppy`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`](https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/) to work.
 
 You can download guppy here: https://community.nanoporetech.com/downloads. An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
 
+The main branch is a simple single-process version (one process to communicate to/from the Guppy client) that works well for HAC and SUP models. If you want performance scaling for multi-GPU setups, especially for FAST basecalling or shorter reads, please use the multi-process version (parallel processes to communicate to/from Guppy client) under the `multiproc` branch.
 
 # Quick start
 
@@ -41,9 +50,10 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
 
 Usage:
 
-    usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--call_mods] [-q QSCORE] [--log LOG] [-v]
+    usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--guppy_batchsize GUPPY_BATCHSIZE] [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--slow5_batchsize SLOW5_BATCHSIZE]
+                    [--quiet] [--moves_out] [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING] [--log LOG] [--seq_sum] [-v]
 
-    buttery-eel - wrapping guppy for file agnostic basecalling
+    buttery-eel - wrapping guppy for SLOW5 basecalling
 
     optional arguments:
     -h, --help            show this help message and exit
@@ -54,11 +64,26 @@ Usage:
     -g GUPPY_BIN, --guppy_bin GUPPY_BIN
                             path to ont_guppy/bin folder (default: None)
     --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
+    --guppy_batchsize GUPPY_BATCHSIZE
+                            number of reads to send to guppy at a time. (default: 4000)
     --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
     -q QSCORE, --qscore QSCORE
                             A mean q-score to split fastq/sam files into pass/fail output (default: None)
+    --slow5_threads SLOW5_THREADS
+                            Number of threads to use reading slow5 file (default: 4)
+    --slow5_batchsize SLOW5_BATCHSIZE
+                            Number of reads to process at a time reading slow5 (default: 4000)
+    --quiet               Don't print progress (default: False)
+    --moves_out           output move table (sam format only) (default: False)
+    --do_read_splitting   Perform read splitting based on mid-strand adapter detection (default: False)
+    --min_score_read_splitting MIN_SCORE_READ_SPLITTING
+                            Minimum mid-strand adapter score for reads to be split (default: 50.0)
     --log LOG             guppy log folder path (default: buttery_guppy_logs)
+    --seq_sum             [Experimental] - Write out sequencing_summary.tsv file (default: False)
     -v, --version         Prints version
+
+
+
 
 
 

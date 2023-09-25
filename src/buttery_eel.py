@@ -396,7 +396,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     bcalled_read["read_id"] = read_id
                                 bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
                                 bcalled_read["int_read_qscore"] = int(call['metadata']['mean_qscore'])
-                                bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(read_id, bcalled_read["parent_read_id"], call['metadata']['model_version_id'], bcalled_read["int_read_qscore"])
+                                bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata']['model_version_id'], bcalled_read["int_read_qscore"])
                                 bcalled_read["sequence"] = call['datasets']['sequence']
                                 bcalled_read["qscore"] = call['datasets']['qstring']
                                 if args.moves_out:
@@ -417,7 +417,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     trimmed_duration = call['metadata']['trimmed_duration']
                                     bcalled_read["num_samples"] = trimmed_duration + bcalled_read["trimmed_samples"]
                                     if bcalled_read["num_samples"] != raw_num_samples:
-                                        print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(read_id, bcalled_read["num_samples"], raw_num_samples))
+                                        print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(bcalled_read["read_id"], bcalled_read["num_samples"], raw_num_samples))
                                 if SPLIT_PASS:
                                     if bcalled_read["read_qscore"] >= qs_cutoff:
                                         # pass

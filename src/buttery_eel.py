@@ -17,6 +17,11 @@ from pyguppy_client_lib import helper_functions
 from ._version import __version__
 
 
+# constants
+total_reads = 0
+div = 50
+skipped = 0
+
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
         sys.stderr.write('error: %s\n' % message)
@@ -197,6 +202,17 @@ def write_output(args, OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, 
         OUT.write("{}\n".format(seq))
         OUT.write("+\n")
         OUT.write("{}\n".format(qscore))
+   
+    global total_reads
+    global div
+    total_reads += 1
+    if not args.quiet:
+        if total_reads % div == 0:
+            print("processed reads: %d" % total_reads)
+            sys.stdout.flush()
+        # don't make div larger than 500K
+        if total_reads >= div*10 and div <= 50000:
+            div = div*10
 
 def write_summary(summary, data):
     """
@@ -621,9 +637,9 @@ def main():
                 read_counter = 0
                 aux_data = {}
                 read_groups = {}
-            if not args.quiet:
-                sys.stdout.write("\rprocessed reads: %d" % total_reads)
-                sys.stdout.flush()
+            # if not args.quiet:
+            #     sys.stdout.write("\rprocessed reads: %d" % total_reads)
+            #     sys.stdout.flush()
 
         # collect any last leftover reads
         if read_counter > 0:

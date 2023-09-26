@@ -5,7 +5,6 @@ import sys
 import time
 from pathlib import Path
 import numpy as np
-from yaml import load
 from io import StringIO
 from contextlib import contextmanager, redirect_stdout
 
@@ -17,6 +16,11 @@ from pyguppy_client_lib import helper_functions
 
 from ._version import __version__
 
+
+# constants
+total_reads = 0
+div = 50
+skipped = 0
 
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
@@ -198,6 +202,17 @@ def write_output(args, OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, 
         OUT.write("{}\n".format(seq))
         OUT.write("+\n")
         OUT.write("{}\n".format(qscore))
+   
+    global total_reads
+    global div
+    total_reads += 1
+    if not args.quiet:
+        if total_reads % div == 0:
+            print("processed reads: %d" % total_reads)
+            sys.stdout.flush()
+        # don't make div larger than 500K
+        if total_reads >= div*10 and div <= 50000:
+            div = div*10
 
 def write_summary(summary, data):
     """
@@ -243,7 +258,6 @@ def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qs
     SPLIT_PASS = False
     move_table = None
     model_stride = None
-    passes_filtering = "-"
     if qscore_cutoff:
         SPLIT_PASS = True
         qs_cutoff = float(qscore_cutoff)
@@ -288,11 +302,14 @@ def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qs
                         if read_qscore >= qs_cutoff:
                             # pass
                             out = OUT[0]
+                            passes_filtering = "TRUE"
                         else:
                             # fail
                             out = OUT[1]
+                            passes_filtering = "FALSE"
                     else:
                         out = OUT
+                        passes_filtering = "-"
                     
                     if args.do_read_splitting:
                         num_samples = None
@@ -620,9 +637,9 @@ def main():
                 read_counter = 0
                 aux_data = {}
                 read_groups = {}
-            if not args.quiet:
-                sys.stdout.write("\rprocessed reads: %d" % total_reads)
-                sys.stdout.flush()
+            # if not args.quiet:
+            #     sys.stdout.write("\rprocessed reads: %d" % total_reads)
+            #     sys.stdout.flush()
 
         # collect any last leftover reads
         if read_counter > 0:

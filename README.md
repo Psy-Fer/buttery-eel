@@ -16,6 +16,14 @@ You can download guppy here: https://community.nanoporetech.com/downloads. An ON
 
 The main branch is a simple single-process version (one process to communicate to/from the Guppy client) that works well for HAC and SUP models. If you want performance scaling for multi-GPU setups, especially for FAST basecalling or shorter reads, please use the multi-process version (parallel processes to communicate to/from Guppy client) under the `multiproc` branch.
 
+# Deprication notice
+
+This version of buttery-eel has been depricated in favour of the multiproc branch.
+while it is the most up to date version of single procecss buttery-eel, it has many disadvantages which multiproc has been addressing, especially when scaling on large GPU clusters.
+It is advised to use the latest release with the latest features. 
+**Use at your own risk.**
+
+
 # Quick start
 
 Using python3, preferably python3.7 to 3.9. Python 3.10 and higher does not yet have any pip wheel builds available for v6.3.8 and lower of guppy

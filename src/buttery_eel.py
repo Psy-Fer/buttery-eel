@@ -138,6 +138,12 @@ def calibration(digitisation, range):
 #     OUT.write("+\n")
 #     OUT.write("{}\n".format(qscore))
 
+def write_summary(summary, data):
+    """
+    write summary file output
+    """
+    summary.write("{}\n".format(data))
+
 def sam_header(OUT, sep='\t'):
     """
     Format a string sam header.
@@ -175,6 +181,7 @@ def read_worker(args, iq):
         pr = cProfile.Profile()
         pr.enable()
 
+    header_array = {}
     # is dir, so reading recursivley
     if os.path.isdir(args.input):
         # this adds a limit to how many reads it will load into memory so we
@@ -184,8 +191,12 @@ def read_worker(args, iq):
             for sfile in files:
                 if sfile.endswith(('.blow5', '.slow5')):
                     s5 = pyslow5.Open(os.path.join(dirpath, sfile), 'r')
-                    reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
-                    batches = get_slow5_batch(reads, size=args.slow5_batchsize)
+                    reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize, aux='all')
+                    if args.seq_sum:
+                        num_read_groups = s5.get_num_read_groups()
+                        for read_group in range(num_read_groups):
+                            header_array[read_group] = s5.get_all_headers(read_group=read_group)
+                    batches = get_slow5_batch(args, s5, reads, size=args.slow5_batchsize, slow5_filename=sfile, header_array=header_array)
                     # put batches of reads onto the queue
                     for batch in chain(batches):
                         # print(iq.qsize())
@@ -198,8 +209,13 @@ def read_worker(args, iq):
         
     else:
         s5 = pyslow5.Open(args.input, 'r')
-        reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
-        batches = get_slow5_batch(reads, size=args.slow5_batchsize)
+        filename_slow5 = args.input.split("/")[-1]
+        reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize, aux='all')
+        if args.seq_sum:
+            num_read_groups = s5.get_num_read_groups()
+            for read_group in range(num_read_groups):
+                header_array[read_group] = s5.get_all_headers(read_group=read_group)
+        batches = get_slow5_batch(args, s5, reads, size=args.slow5_batchsize, slow5_filename=filename_slow5, header_array=header_array)
         # this adds a limit to how many reads it will load into memory so we
         # don't blow the ram up
         max_limit = int(args.max_read_queue_size / args.slow5_batchsize)
@@ -233,6 +249,23 @@ def write_worker(args, q, files, SAM_OUT):
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
+    
+    if args.seq_sum:
+        if "/" in args.output:
+            SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+            print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
+        else:
+            SUMMARY = open("./sequencing_summary.txt", "w")
+            print("Writing summary file to: ./sequencing_summary.txt")
+
+        SUMMARY_HEADER = "\t".join(["filename_fastq", "filename_slow5", "parent_read_id",
+                                    "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
+                                    "passes_filtering", "template_start", "num_events_template", "template_duration",
+                                    "sequence_length_template", "mean_qscore_template", "strand_score_template",
+                                    "median_template", "mad_template", "pore_type", "experiment_id", "sample_id", "end_reason"])
+        write_summary(SUMMARY, SUMMARY_HEADER)
+    else:
+        SUMMARY = None
 
 
     if SAM_OUT:
@@ -266,6 +299,11 @@ def write_worker(args, q, files, SAM_OUT):
                     fkey = "pass"
                 else:
                     fkey = "fail"
+            if SUMMARY is not None:
+                summary_str = read["sum_out"]
+                sum_out = files[fkey] + "\t" + summary_str
+                write_summary(SUMMARY, sum_out)
+
             write_output(args, read, OUT[fkey], SAM_OUT)
         q.task_done()
     
@@ -426,11 +464,39 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     if bcalled_read["read_qscore"] >= qs_cutoff:
                                         # pass
                                         bcalled_read["out"] = "pass"
+                                        passes_filtering = "TRUE"
                                     else:
                                         # fail
                                         bcalled_read["out"] = "fail"
+                                        passes_filtering = "FALSE"
                                 else:
                                     bcalled_read["out"] = "single"
+                                    passes_filtering = "-"
+                                
+                                 # create summary data
+                                if args.seq_sum:
+                                    minknow_events = call['metadata']['num_minknow_events']
+                                    duration = call['metadata']['duration']
+                                    num_events = call['metadata']['num_events']
+                                    median = round(call['metadata']['median'], 6)
+                                    med_abs_dev = round(call['metadata']['med_abs_dev'], 6)
+                                    pore_type = read["header_array"]['pore_type']
+                                    experiment_id = read["header_array"]['protocol_group_id']
+                                    run_id = read["header_array"]["run_id"]
+                                    sample_id = read["header_array"]["sample_id"]
+                                    strand_score_template = round(call['metadata']['call_score'], 6)
+                                    sequence_length = call['metadata']['sequence_length']
+                                    channel = read["aux_data"]['channel_number']
+                                    mux = read["aux_data"]['start_mux']
+                                    start_time = read["aux_data"]['start_time']
+                                    end_reason_val = read["aux_data"]['end_reason']
+                                    end_reason = read["aux_data"]['end_reason_labels'][end_reason_val]
+                                    output_name = ""
+                                    sum_out = "\t".join([str(i) for i in [read["slow5_filename"], bcalled_read["parent_read_id"], read_id, run_id, channel, mux, minknow_events,
+                                            start_time, duration, passes_filtering, "-", num_events, "-",
+                                            sequence_length, bcalled_read["read_qscore"], strand_score_template, median, med_abs_dev, pore_type,
+                                            experiment_id, sample_id, end_reason]])
+                                    bcalled_read["sum_out"] = sum_out
                                 bcalled_list.append(bcalled_read)
                             except Exception as error:
                                 # handle the exception
@@ -482,12 +548,32 @@ def submit_read(args, iq, rq, address, config, params, N):
 #
 #     return model_version_id
 
-def get_slow5_batch(reads, size=4096):
+def get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, header_array=None):
     """
     re-batchify slow5 output
     """
     batch = []
     for read in reads:
+        if args.seq_sum:
+            # get header once for each read group
+            read_group = read["read_group"]
+            # if read_group not in header_array:
+            #     header_array[read_group] = slow5_obj.get_all_headers(read_group=read_group)
+            # get aux data for ead read
+            
+
+            aux_data = {"channel_number": read["channel_number"], 
+                                "start_mux": read["start_mux"],
+                                "start_time": read["start_time"],
+                                "read_number": read["read_number"],
+                                "end_reason": read["end_reason"],
+                                "median_before": read["median_before"],
+                                "end_reason_labels": slow5_obj.get_aux_enum_labels('end_reason')
+                                }
+            read["aux_data"] = aux_data
+            read["header_array"] = header_array[read_group]
+            read["slow5_filename"] = slow5_filename
+        
         batch.append(read)
         if len(batch) >= size:
             yield batch
@@ -557,6 +643,8 @@ def main():
                         help="Flag indicating that adapters should be trimmed. Default is False.")
     parser.add_argument("--detect_mid_strand_adapter", action="store_true",
                         help="Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.")
+    parser.add_argument("--seq_sum", action="store_true",
+                        help="[Experimental] - Write out sequencing_summary.txt file")
     # parser.add_argument("--max_queued_reads", default="2000",
     #                     help="Number of reads to send to guppy server queue")
     # parser.add_argument("--chunk_size", default="2000",

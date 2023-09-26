@@ -2,11 +2,14 @@
 
 import argparse
 import sys
+import os
 import time
 from pathlib import Path
 import numpy as np
 from io import StringIO
 from contextlib import contextmanager, redirect_stdout
+from itertools import chain
+import multiprocessing as mp
 
 import pyslow5
 
@@ -14,13 +17,15 @@ import pyguppy_client_lib
 from pyguppy_client_lib.pyclient import PyGuppyClient
 from pyguppy_client_lib import helper_functions
 
-from ._version import __version__
+import cProfile, pstats, io
 
+from ._version import __version__
 
 # constants
 total_reads = 0
 div = 50
 skipped = 0
+
 
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
@@ -44,6 +49,9 @@ def start_guppy_server_and_client(args, server_args):
                         # "--chunk_size", args.chunk_size,
                         ])
     params = {"priority": PyGuppyClient.high_priority}
+
+    if args.moves_out:
+        params["move_and_trace_enabled"] = True
     
     if args.call_mods:
         params["move_and_trace_enabled"] = True
@@ -61,11 +69,7 @@ def start_guppy_server_and_client(args, server_args):
 
     if args.trim_adapters:
         params["trim_adapters"] = True
-
     
-    # if args.align_ref:
-    #     server_args.extend(["--align_ref", args.align_ref])
-    #     params["align_ref"] = args.align_ref
 
     # This function has it's own prints that may want to be suppressed
     with redirect_stdout(StringIO()) as fh:
@@ -78,7 +82,7 @@ def start_guppy_server_and_client(args, server_args):
         address = "{}".format(port)
     else:
         address = "localhost:{}".format(port)
-    client = PyGuppyClient(address=address, config=args.config, move_and_trace_enabled=args.moves_out)
+    client = PyGuppyClient(address=address, config=args.config)
 
 
     print("Setting params...")
@@ -86,7 +90,7 @@ def start_guppy_server_and_client(args, server_args):
     print("Connecting...")
     try:
         with client:
-            yield client
+            yield [client, address, args.config, params]
     finally:
         server.terminate()
 
@@ -107,6 +111,7 @@ def start_guppy_server_and_client(args, server_args):
 #     #     server_args.append(i)
 #     ret = helper_functions.run_server(server_args, bin_path=args.guppy_bin)
 #     return ret
+
 
 def calibration(digitisation, range):
     """
@@ -157,52 +162,151 @@ def sam_header(OUT, sep='\t'):
     OUT.write("{}\n".format(PG1))
     OUT.write("{}\n".format(PG2))
 
-
-def write_output(args, OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, sam="", mods=False, moves=False, move_table=None, model_stride=None, num_samples=None, trimmed_samples=None):
+def read_worker(args, iq):
     '''
-    TODO: use args rather than specific args
-    add these fields:
-    
-    std::vector<std::string> Read::generate_read_tags() const {
-    // GCC doesn't support <format> yet...
-    std::vector<std::string> tags = {
-        "qs:i:" + std::to_string(static_cast<int>(std::round(utils::mean_qscore_from_qstring(qstring)))),
-        "ns:i:" + std::to_string(num_samples),
-        "ts:i:" + std::to_string(num_trimmed_samples),
-        "mx:i:" + std::to_string(attributes.mux),
-        "ch:i:" + std::to_string(attributes.channel_number),
-        "st:Z:" + attributes.start_time,
-        "rn:i:" + std::to_string(attributes.read_number),
-        "f5:Z:" + attributes.fast5_filename
-    };
-
-    return tags;
+    single threaded worker to read slow5 (with multithreading)
     '''
+    if args.profile:
+        pr = cProfile.Profile()
+        pr.enable()
+
+    # is dir, so reading recursivley
+    if os.path.isdir(args.input):
+        # this adds a limit to how many reads it will load into memory so we
+        # don't blow the ram up
+        max_limit = int(args.max_read_queue_size / args.slow5_batchsize)
+        for dirpath, _, files in os.walk(args.input):
+            for sfile in files:
+                if sfile.endswith(('.blow5', '.slow5')):
+                    s5 = pyslow5.Open(os.path.join(dirpath, sfile), 'r')
+                    reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
+                    batches = get_slow5_batch(reads, size=args.slow5_batchsize)
+                    # put batches of reads onto the queue
+                    for batch in chain(batches):
+                        # print(iq.qsize())
+                        if iq.qsize() < max_limit:
+                            iq.put(batch)
+                        else:
+                            while iq.qsize() >= max_limit:
+                                time.sleep(0.01)
+                            iq.put(batch)
+        
+    else:
+        s5 = pyslow5.Open(args.input, 'r')
+        reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
+        batches = get_slow5_batch(reads, size=args.slow5_batchsize)
+        # this adds a limit to how many reads it will load into memory so we
+        # don't blow the ram up
+        max_limit = int(args.max_read_queue_size / args.slow5_batchsize)
+        # put batches of reads onto the queue
+        for batch in chain(batches):
+            # print(iq.qsize())
+            if iq.qsize() < max_limit:
+                iq.put(batch)
+            else:
+                while iq.qsize() >= max_limit:
+                    time.sleep(0.01)
+                iq.put(batch)
+    for _ in range(args.procs):
+        iq.put(None)
     
+    # if profiling, dump info into log files in current dir
+    if args.profile:
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        with open("read_worker.log", 'w') as f:
+            print(s.getvalue(), file=f)
+
+
+def write_worker(args, q, files, SAM_OUT):
+    '''
+    single threaded worker to process results queue
+    '''
+    if args.profile:
+        pr = cProfile.Profile()
+        pr.enable()
+
+
     if SAM_OUT:
-        if mods:
-            OUT.write("{}\n".format(sam))
-        elif moves:
-            m = move_table.tolist()
+        if args.qscore:
+            PASS = open(files["pass"], 'w') 
+            FAIL = open(files["fail"], 'w')
+            sam_header(PASS)
+            sam_header(FAIL)
+            OUT = {"pass": PASS, "fail": FAIL}
+        else:
+            single = open(files["single"], 'w')
+            sam_header(single)
+            OUT = {"single": single}
+    else:
+        if args.qscore:
+            PASS = open(files["pass"], 'w') 
+            FAIL = open(files["fail"], 'w')
+            OUT = {"pass": PASS, "fail": FAIL}
+        else:
+            single = open(files["single"], 'w')
+            OUT = {"single": single}
+    while True:
+        bcalled_list = []
+        bcalled_list = q.get()
+        if bcalled_list is None:
+            break
+        for read in bcalled_list:
+            fkey = "single"
+            if args.qscore:
+                if read["read_qscore"] >= float(args.qscore):
+                    fkey = "pass"
+                else:
+                    fkey = "fail"
+            write_output(args, read, OUT[fkey], SAM_OUT)
+        q.task_done()
+    
+    if len(OUT.keys()) > 1:
+        OUT["pass"].close()
+        OUT["fail"].close()
+    else:
+        OUT["single"].close()
+    
+    if args.profile:
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        with open("write_worker.log", 'w') as f:
+            print(s.getvalue(), file=f)
+
+def write_output(args, read, OUT, SAM_OUT):
+    '''
+    write the ouput to the file
+    '''
+    read_id = read["read_id"]
+    if SAM_OUT:
+        if args.call_mods:
+            OUT.write("{}\n".format(read["sam_record"]))
+        elif args.moves_out:
+            m = read["move_table"].tolist()
             move_str = ','.join(map(str, m))
             if args.do_read_splitting:
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore))
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["int_read_qscore"]))
             else:
                 # do ns and ts tags
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, seq, qscore, model_stride, move_str, read_qscore, num_samples, trimmed_samples))
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
         else:
             if args.do_read_splitting:
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, seq, qscore, read_qscore))
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["int_read_qscore"]))
             else:
                 # do ns and ts tags
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, seq, qscore, read_qscore, num_samples, trimmed_samples))
+                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
     else:
         # write fastq
-        OUT.write("{}\n".format(header))
-        OUT.write("{}\n".format(seq))
+        OUT.write("{}\n".format(read["header"]))
+        OUT.write("{}\n".format(read["sequence"]))
         OUT.write("+\n")
-        OUT.write("{}\n".format(qscore))
-   
+        OUT.write("{}\n".format(read["qscore"]))
     global total_reads
     global div
     total_reads += 1
@@ -214,146 +318,140 @@ def write_output(args, OUT, read_id, header, seq, qscore, SAM_OUT, read_qscore, 
         if total_reads >= div*10 and div <= 50000:
             div = div*10
 
-def write_summary(summary, data):
-    """
-    write summary file output
-    """
-    summary.write("{}\n".format(data))
 
-def submit_read(client, read):
+
+
+def submit_read(args, iq, rq, address, config, params, N):
     """
     submit a read to the basecall server
     """
-    skipped = ""
-    read_id = read['read_id']
-    # calculate scale
-    scale = calibration(read['digitisation'], read['range'])
-    result = False
-    tries = 0
-    while not result:
-        result = client.pass_read(
-                helper_functions.package_read(
-                    read_id=read_id,
-                    raw_data=np.frombuffer(read['signal'], np.int16),
-                    daq_offset=read['offset'],
-                    daq_scaling=scale,
-                )
-            )
-        if tries > 1:
-            time.sleep(client.throttle)
-        tries += 1
-        if tries >= 1000:
-            if not result:
-                print("Skipped a read: {}".format(read_id))
-                skipped = read_id
-                break
-    return result, skipped
-
-
-def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qscore_cutoff, header_array, read_groups, aux_data, filename_slow5):
-    """
-    Get the reads back from the basecall server after being basecalled
-    bcalled object contains 1 or more called reads, which contain various data
-    """
+    if args.profile:
+        pr = cProfile.Profile()
+        pr.enable()
+    skipped = []
+    read_counter = 0
     SPLIT_PASS = False
-    move_table = None
-    model_stride = None
-    if qscore_cutoff:
+    if args.qscore:
         SPLIT_PASS = True
-        qs_cutoff = float(qscore_cutoff)
+        qs_cutoff = float(args.qscore)
     done = 0
-    while done < read_counter:
-        bcalled = client.get_completed_reads()
-        if not bcalled:
-            time.sleep(client.throttle)
-            continue
-        else:
-            for calls in bcalled:
-                sam_record = ""
-                done += 1
-                split_reads = False
-                if len(calls) > 1:
-                    split_reads = True
-                for call in calls:
-                    read_id = call['metadata']['read_id']
-                    parent_read_id = read_id
-                    if split_reads:
-                        read_id = call['metadata']['strand_id']
-                    read_qscore = call['metadata']['mean_qscore']
-                    int_read_qscore = int(read_qscore)
-                    # @read_id runid=bf... sampleid=NA12878_SRE read=476 ch=38 start_time=2020-10-26T19:58:23Z model_version_id=2021-05-17_dna_r9.4.1_minion_96_29d8704b
-                    # model_version_id = get_model_info(args.config, args.guppy_bin)
-                    header = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(read_id, parent_read_id, call['metadata']['model_version_id'], int_read_qscore)
-                    sequence = call['datasets']['sequence']
-                    qscore = call['datasets']['qstring']
-                    # when calling mods, can just output sam_record value
-                    # otherwise, write_output will handle unaligned sam with no mods
-                    if moves:
-                        move_table = call['datasets']['movement']
-                        model_stride = call['metadata']['model_stride']
-                    if mods:
-                        try:
-                            sam_record = call['metadata']['alignment_sam_record']
-                        except:
-                            # TODO: add warning that mods model not being used, and exit
-                            sam_record = ""
-                            mods = False
-                    if SPLIT_PASS:
-                        if read_qscore >= qs_cutoff:
-                            # pass
-                            out = OUT[0]
-                            passes_filtering = "TRUE"
-                        else:
-                            # fail
-                            out = OUT[1]
-                            passes_filtering = "FALSE"
-                    else:
-                        out = OUT
-                        passes_filtering = "-"
-                    
-                    if args.do_read_splitting:
-                        num_samples = None
-                        trimmed_samples = None
-                    else:
-                        raw_num_samples = len(call['datasets']['raw_data'])
-                        trimmed_samples = call['metadata']['trimmed_samples']
-                        trimmed_duration = call['metadata']['trimmed_duration']
-                        num_samples = trimmed_duration + trimmed_samples
-                        if num_samples != raw_num_samples:
-                            print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(read_id, num_samples, raw_num_samples))
-                    
-                    # create summary data
-                    if SUMMARY is not None:
-                        read_group = read_groups[parent_read_id]
-                        minknow_events = call['metadata']['num_minknow_events']
-                        duration = call['metadata']['duration']
-                        num_events = call['metadata']['num_events']
-                        median = round(call['metadata']['median'], 6)
-                        med_abs_dev = round(call['metadata']['med_abs_dev'], 6)
-                        pore_type = header_array[read_group]['pore_type']
-                        experiment_id = header_array[read_group]['protocol_group_id']
-                        run_id = header_array[read_group]["run_id"]
-                        sample_id = header_array[read_group]["sample_id"]
-                        strand_score_template = round(call['metadata']['call_score'], 6)
-                        sequence_length = call['metadata']['sequence_length']
-                        channel = aux_data[parent_read_id]['channel_number']
-                        mux = aux_data[parent_read_id]['start_mux']
-                        start_time = aux_data[parent_read_id]['start_time']
-                        end_reason_val = aux_data[parent_read_id]['end_reason']
-                        end_reason = aux_data[parent_read_id]['end_reason_labels'][end_reason_val]
-                        output_name = out.name.split("/")[-1]
-                        sum_out = "\t".join([str(i) for i in  [output_name, filename_slow5, parent_read_id, read_id, run_id, channel, mux, minknow_events,
-                                start_time, duration, passes_filtering, "-", num_events, "-",
-                                sequence_length, read_qscore, strand_score_template, median, med_abs_dev, pore_type,
-                                experiment_id, sample_id, end_reason]])
-                        
-                        # write the data
-                        write_summary(SUMMARY, sum_out)
-                    
-                    write_output(args, out, read_id, header, sequence, qscore, SAM_OUT, int_read_qscore, sam=sam_record, mods=mods, moves=moves, move_table=move_table, model_stride=model_stride, num_samples=num_samples, trimmed_samples=trimmed_samples)
-    done = 0
+    bcalled_list = []
 
-# How we get data out of the model files if they are not provided by the metadata output    
+    client_sub = PyGuppyClient(address=address, config=config)
+    client_sub.set_params(params)
+    # submit a batch of reads to be basecalled
+    with client_sub as client:
+        while True:
+            batch = iq.get()
+            if batch is None:
+                break
+            for read in batch:
+                read_id = read['read_id']
+                # calculate scale
+                scale = calibration(read['digitisation'], read['range'])
+                result = False
+                tries = 0
+                while not result:
+                    result = client.pass_read(
+                            helper_functions.package_read(
+                                read_id=read_id,
+                                raw_data=np.frombuffer(read['signal'], np.int16),
+                                daq_offset=read['offset'],
+                                daq_scaling=scale,
+                            )
+                        )
+                    if tries > 1:
+                        time.sleep(client.throttle)
+                    tries += 1
+                    if tries >= 1000:
+                        if not result:
+                            print("Skipped a read: {}".format(read_id))
+                            skipped.append(read_id)
+                            break
+                if result:
+                    read_counter += 1
+        
+            # now collect the basecalled reads
+            while done < read_counter:
+                bcalled = client.get_completed_reads()
+                if not bcalled:
+                    time.sleep(client.throttle)
+                    continue
+                else:
+                    for calls in bcalled:
+                        done += 1
+                        split_reads = False
+                        if len(calls) > 1:
+                            split_reads = True
+                        for call in calls:
+                            try:
+                                bcalled_read = {}
+                                bcalled_read["sam_record"] = ""
+                                read_id = call['metadata']['read_id']
+                                bcalled_read["parent_read_id"] = read_id
+                                if split_reads:
+                                    bcalled_read["read_id"] = call['metadata']['strand_id']
+                                else:
+                                    bcalled_read["read_id"] = read_id
+                                bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
+                                bcalled_read["int_read_qscore"] = int(call['metadata']['mean_qscore'])
+                                bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata']['model_version_id'], bcalled_read["int_read_qscore"])
+                                bcalled_read["sequence"] = call['datasets']['sequence']
+                                bcalled_read["qscore"] = call['datasets']['qstring']
+                                if args.moves_out:
+                                    bcalled_read["move_table"] = call['datasets']['movement']
+                                    bcalled_read["model_stride"] = call['metadata']['model_stride']
+                                if args.call_mods:
+                                    try:
+                                        bcalled_read["sam_record"] = call['metadata']['alignment_sam_record']
+                                    except:
+                                        # TODO: add warning that mods model not being used, and exit
+                                        bcalled_read["sam_record"] = ""
+                                if args.do_read_splitting:
+                                    bcalled_read["num_samples"] = None
+                                    bcalled_read["trimmed_samples"] = None
+                                else:
+                                    raw_num_samples = len(call['datasets']['raw_data'])
+                                    bcalled_read["trimmed_samples"] = call['metadata']['trimmed_samples']
+                                    trimmed_duration = call['metadata']['trimmed_duration']
+                                    bcalled_read["num_samples"] = trimmed_duration + bcalled_read["trimmed_samples"]
+                                    if bcalled_read["num_samples"] != raw_num_samples:
+                                        print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(bcalled_read["read_id"], bcalled_read["num_samples"], raw_num_samples))
+                                if SPLIT_PASS:
+                                    if bcalled_read["read_qscore"] >= qs_cutoff:
+                                        # pass
+                                        bcalled_read["out"] = "pass"
+                                    else:
+                                        # fail
+                                        bcalled_read["out"] = "fail"
+                                else:
+                                    bcalled_read["out"] = "single"
+                                bcalled_list.append(bcalled_read)
+                            except Exception as error:
+                                # handle the exception
+                                print("An exception occurred:", type(error).__name__, "-", error)
+                                sys.exit(1)
+
+                    
+            read_counter = 0
+            done = 0
+
+            # TODO: make a skipped queue to handle skipped reads
+            rq.put(bcalled_list)
+            iq.task_done()
+            bcalled_list = []
+    
+    if args.profile:
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        with open("submit_worker_{}.txt".format(N), 'w') as f:
+            print(s.getvalue(), file=f)
+
+
+# How we get data out of the model files if they are not provided by the metadata output
 
 # def get_model_info(config, guppy_bin):
 #     config = os.path.join(guppy_bin,"../data/", config)
@@ -379,6 +477,19 @@ def get_reads(args, client, OUT, SAM_OUT, SUMMARY, mods, moves, read_counter, qs
 #
 #     return model_version_id
 
+def get_slow5_batch(reads, size=4096):
+    """
+    re-batchify slow5 output
+    """
+    batch = []
+    for read in reads:
+        batch.append(read)
+        if len(batch) >= size:
+            yield batch
+            batch = []
+    if len(batch) > 0:
+        yield batch
+
 
 def main():
     # ==========================================================================
@@ -402,7 +513,7 @@ def main():
 
     # Args for the wrapper, and then probably best to just have free form args for guppy
     parser.add_argument("-i", "--input", required=True,
-                        help="input blow5 file for basecalling")
+                        help="input blow5 file or directory for basecalling")
     parser.add_argument("-o", "--output", required=True,
                         help="output .fastq or unaligned .sam file to write")
     parser.add_argument("-g", "--guppy_bin", type=Path, required=True,
@@ -417,10 +528,16 @@ def main():
                         help="A mean q-score to split fastq/sam files into pass/fail output")
     parser.add_argument("--slow5_threads", type=int, default=4,
                         help="Number of threads to use reading slow5 file")
+    parser.add_argument("--procs", type=int, default=4,
+                        help="Number of worker processes to use processing reads")
     parser.add_argument("--slow5_batchsize", type=int, default=4000,
                         help="Number of reads to process at a time reading slow5")
     parser.add_argument("--quiet", action="store_true",
                         help="Don't print progress")
+    parser.add_argument("--max_read_queue_size", type=int, default=20000,
+                        help="Number of reads to process at a time reading slow5")
+    parser.add_argument("--log", default="buttery_guppy_logs",
+                        help="guppy log folder path")
     parser.add_argument("--moves_out", action="store_true",
                         help="output move table (sam format only)")
     parser.add_argument("--do_read_splitting", action="store_true",
@@ -435,22 +552,13 @@ def main():
                         help="Flag indicating that adapters should be trimmed. Default is False.")
     parser.add_argument("--detect_mid_strand_adapter", action="store_true",
                         help="Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.")
-    # Disabling alignment because sam file headers are painful and frankly out of scope. Just use minimap2.
-    # parser.add_argument("-a", "--align_ref",
-    #                     help="reference .mmi file. will output sam. (build with: minimap2 -x map-ont -d ref.mmi ref.fa )")
-    # parser.add_argument("--port", default="5558",
-    #                     help="port to use between server/client")
-    parser.add_argument("--log", default="buttery_guppy_logs",
-                        help="guppy log folder path")
-    parser.add_argument("--seq_sum", action="store_true",
-                        help="[Experimental] - Write out sequencing_summary.txt file")
     # parser.add_argument("--max_queued_reads", default="2000",
     #                     help="Number of reads to send to guppy server queue")
     # parser.add_argument("--chunk_size", default="2000",
     #                     help="signal chunk size, lower this for lower VRAM GPUs")
-    # parser.add_argument("-x", "--device", default="auto",
-    #                     help="Specify GPU device: 'auto', or 'cuda:<device_id>'")
-    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wraping guppy for SLOW5 basecalling version: {}".format(VERSION),
+    parser.add_argument("--profile", action="store_true",
+                        help="run cProfile on all processes - for debugging benchmarking")
+    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wrapping guppy for SLOW5 basecalling version: {}".format(VERSION),
                         help="Prints version")
     # parser.add_argument("--debug", action="store_true",
     #                     help="Set logging to debug mode")
@@ -463,7 +571,12 @@ def main():
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
-
+    
+    if args.slow5_batchsize > args.max_read_queue_size:
+        print("slow5_batchsize > max_read_queue_size, please alter args so max_read_queue_size is the larger value")
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    
     print()
     print("               ~  buttery-eel - SLOW5 Guppy Basecalling  ~")
     print("==========================================================================\n  ARGS\n==========================================================================")
@@ -488,17 +601,17 @@ def main():
         print("MOD CALLING VERSION CHECK: >6.3.0? {}".format(check))
         print()
         if not check:
-            sys.stderr.write("ERROR: Please use guppy and ont-pyguppy-client-lib version 6.3.0 or higher for modification calling\n")
-            sys.stderr.write("\n")
+            print("ERROR: Please use guppy and ont-pyguppy-client-lib version 6.3.0 or higher for modification calling")
+            print()
             sys.exit(1)
 
     # ==========================================================================
     # Start guppy_basecall_server
     # ==========================================================================
-    print()
-    print()
+    print("\n")
     print("==========================================================================\n  Starting Guppy Basecalling Server\n==========================================================================")
-    with start_guppy_server_and_client(args, other_server_args) as client:
+    with start_guppy_server_and_client(args, other_server_args) as client_one:
+        client, address, config, params = client_one
         print(client)
         print("guppy_basecall_server started...")
         print()
@@ -518,15 +631,14 @@ def main():
         # print(client.get_server_information("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_software_version())
 
-        print()
-        print()
+        print("\n")
 
         # ==========================================================================
         # Read signal file
         # ==========================================================================
         print("==========================================================================\n  Files\n==========================================================================")
         print("Reading from: {}".format(args.input))
-        # print("Writing to: {}".format(args.output))
+        # sys.stderr.write("Writing to: {}\n".format(args.output))
         if args.call_mods or args.output.split(".")[-1]=="sam":
             SAM_OUT = True
             if args.qscore:
@@ -535,16 +647,17 @@ def main():
                 name, ext = [".".join(file[:-1])], file[-1:]
                 pass_file = ".".join(name + ["pass"] + ext)
                 fail_file = ".".join(name + ["fail"] + ext)
-                PASS = open(pass_file, 'w') 
-                FAIL = open(fail_file, 'w')
-                OUT = (PASS, FAIL)
-                sam_header(PASS)
-                sam_header(FAIL)
+                # PASS = open(pass_file, 'w') 
+                # FAIL = open(fail_file, 'w')
+                OUT = {"pass": pass_file, "fail": fail_file}
+                # sam_header(PASS)
+                # sam_header(FAIL)
                 print("Writing to: {}".format(pass_file))
                 print("Writing to: {}".format(fail_file))
             else:
-                OUT = open(args.output, 'w')
-                sam_header(OUT)
+                # single = open(args.output, 'w')
+                OUT = {"single": args.output}
+                # sam_header(single)
                 print("Writing to: {}".format(args.output))
         else:
             # TODO: check output ends in .fastq
@@ -556,41 +669,16 @@ def main():
                 name, ext = [".".join(file[:-1])], file[-1:]
                 pass_file = ".".join(name + ["pass"] + ext)
                 fail_file = ".".join(name + ["fail"] + ext)
-                PASS = open(pass_file, 'w') 
-                FAIL = open(fail_file, 'w')
-                OUT = (PASS, FAIL)
+                # PASS = open(pass_file, 'w') 
+                # FAIL = open(fail_file, 'w')
+                OUT = {"pass": pass_file, "fail": fail_file}
                 print("Writing to: {}".format(pass_file))
                 print("Writing to: {}".format(fail_file))
             else:
-                OUT = open(args.output, 'w')
+                # single = open(args.output, 'w')
+                OUT = {"single": args.output}
                 print("Writing to: {}".format(args.output))
         
-        if args.seq_sum:
-            if "/" in args.output:
-                SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
-                print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
-            else:
-                SUMMARY = open("./sequencing_summary.txt", "w")
-                print("Writing summary file to: ./sequencing_summary.txt")
-
-            SUMMARY_HEADER = "\t".join(["filename_fastq", "filename_slow5", "parent_read_id",
-                                        "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
-                                        "passes_filtering", "template_start", "num_events_template", "template_duration",
-                                        "sequence_length_template", "mean_qscore_template", "strand_score_template",
-                                        "median_template", "mad_template", "pore_type", "experiment_id", "sample_id", "end_reason"])
-            write_summary(SUMMARY, SUMMARY_HEADER)
-        
-        else:
-            SUMMARY = None
-        
-        filename_slow5 = args.input.split("/")[-1]
-        s5 = pyslow5.Open(args.input, 'r')
-        # reads = s5.seq_reads()
-        if args.seq_sum:
-            reads = s5.seq_reads_multi(aux='all', threads=args.slow5_threads, batchsize=args.slow5_batchsize)
-        else:
-            reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize)
-
         print()
 
         # ==========================================================================
@@ -599,73 +687,37 @@ def main():
         print("==========================================================================\n  Basecalling\n==========================================================================")
         print()
 
-        total_reads = 0
-        read_counter = 0
+        mp.set_start_method('spawn')
+        input_queue = mp.JoinableQueue()
+        result_queue = mp.JoinableQueue()
+        processes = []
+        reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
+        reader.start()
+        out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
+        out_writer.start()
         skipped = []
-        header_array = {}
-        aux_data = {}
-        read_groups = {}
-        for read in reads:
-            if args.seq_sum:
-                # get header once for each read group
-                read_group = read["read_group"]
-                if read_group not in header_array:
-                    header_array[read_group] = s5.get_all_headers(read_group=read_group)
-                # get aux data for ead read
-                readID = read["read_id"]
-                read_groups[readID] = read_group
-                
+        for i in range(args.procs):
+            basecall_worker = mp.Process(target=submit_read, args=(args, input_queue, result_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
+            basecall_worker.start()
+            processes.append(basecall_worker)
 
-                aux_data[readID] = {"channel_number": read["channel_number"], 
-                                    "start_mux": read["start_mux"],
-                                    "start_time": read["start_time"],
-                                    "read_number": read["read_number"],
-                                    "end_reason": read["end_reason"],
-                                    "median_before": read["median_before"],
-                                    "end_reason_labels": s5.get_aux_enum_labels('end_reason')
-                                    }
-            
-            res, skip = submit_read(client, read)
-            if not res:
-                skipped.append(skip)
-                continue
-            else:
-                read_counter += 1
-                total_reads += 1
-            if read_counter >= args.guppy_batchsize:
-                get_reads(args, client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
-                read_counter = 0
-                aux_data = {}
-                read_groups = {}
-            # if not args.quiet:
-            #     sys.stdout.write("\rprocessed reads: %d" % total_reads)
-            #     sys.stdout.flush()
-
-        # collect any last leftover reads
-        if read_counter > 0:
-            get_reads(args, client, OUT, SAM_OUT, SUMMARY, args.call_mods, args.moves_out, read_counter, args.qscore, header_array, read_groups, aux_data, filename_slow5)
-            read_counter = 0
-
-        print()
-        print()
-        print("Basecalling complete!")
+        reader.join()
+        for p in processes:
+            p.join()
+        result_queue.put(None)
+        out_writer.join()
+        print("\n")
+        print("Basecalling complete!\n")
 
         # ==========================================================================
         # Finish up, close files, disconnect client and terminate server
         # ==========================================================================
-        print()
-        print("==========================================================================\n  Summary\n==========================================================================")
-        print("Processed {} reads".format(total_reads))
-        print("skipped {} reads".format(len(skipped)))
-        print()
-        # close file
-        if type(OUT) == tuple:
-            OUT[0].close()
-            OUT[1].close()
-        else:
-            OUT.close()
-        if args.seq_sum:
-            SUMMARY.close()
+        print("\n")
+        # print("==========================================================================\n  Summary\n==========================================================================")
+        # global total_reads
+        # print("Processed {} reads\n".format(total_reads))
+        # print("skipped {} reads\n".format(len(skipped)))
+        # print("\n")
 
     print("==========================================================================\n  Cleanup\n==========================================================================")
     print("Disconnecting client")

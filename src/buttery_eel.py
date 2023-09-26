@@ -6,7 +6,6 @@ import os
 import time
 from pathlib import Path
 import numpy as np
-from yaml import load
 from io import StringIO
 from contextlib import contextmanager, redirect_stdout
 from itertools import chain
@@ -21,6 +20,11 @@ from pyguppy_client_lib import helper_functions
 import cProfile, pstats, io
 
 from ._version import __version__
+
+# constants
+total_reads = 0
+div = 50
+skipped = 0
 
 
 total_reads = 0

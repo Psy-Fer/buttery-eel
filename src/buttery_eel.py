@@ -75,6 +75,15 @@ def start_guppy_server_and_client(args, server_args):
     if args.trim_adapters:
         params["trim_adapters"] = True
     
+    if args.barcode_kits:
+        params["barcode_kits"] = args.barcode_kits
+        params["min_score_barcode_front"] = args.min_score_barcode_front
+        params["min_score_barcode_rear"] = args.min_score_barcode_rear
+        params["min_score_barcode_mid"] = args.min_score_barcode_mid
+        # docs are a bit wonky on this, enable_trim_barcodes vs barcode_trimming_enabled
+        params["enable_trim_barcodes"] = args.enable_trim_barcodes
+        params["require_barcodes_both_ends"] = args.require_barcodes_both_ends
+        params["detect_mid_strand_barcodes"] = args.detect_mid_strand_barcodes
 
     # This function has it's own prints that may want to be suppressed
     with redirect_stdout(StringIO()) as fh:
@@ -266,6 +275,20 @@ def write_worker(args, q, files, SAM_OUT):
         write_summary(SUMMARY, SUMMARY_HEADER)
     else:
         SUMMARY = None
+    
+    if args.barcode_kits:
+        bc_files = {}
+        if "/" in args.output:
+            BARCODE_SUMMARY = open("{}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+            print("Writing summary file to: {}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])))
+        else:
+            BARCODE_SUMMARY = open("./barcoding_summary.txt", "w")
+            print("Writing summary file to: ./barcoding_summary.txt")
+        BARCODE_SUMMARY_HEADER = "\t".join(["read_id", "barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
+                                            "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
+                                            "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
+                                            "barcode_rear_end_index"])
+        write_summary(BARCODE_SUMMARY, BARCODE_SUMMARY_HEADER)
 
 
     if SAM_OUT:
@@ -303,6 +326,40 @@ def write_worker(args, q, files, SAM_OUT):
                 summary_str = read["sum_out"]
                 sum_out = files[fkey] + "\t" + summary_str
                 write_summary(SUMMARY, sum_out)
+            
+            if args.barcode_kits:
+                # write summary
+                bc_summary_str = read["bc_sum_out"]
+                write_summary(BARCODE_SUMMARY, bc_summary_str)
+                # write barcode file
+                barcode = read["barcode_arrangement"]
+                barcode_name = barcode
+                if barcode not in bc_files:
+                    fff = args.output.split(".")
+                    # doing [-1:] rather than [-1] gives a list back
+                    name, ext = [".".join(fff[:-1])], fff[-1:]
+                    # if just a single output
+                    bcod_file = ".".join(name + [barcode] + ext)
+                    # otherwise split on pass/fail
+                    if fkey == "pass":
+                        bcod_file = ".".join(name + ["pass"] + [barcode] + ext)
+                        barcode_name = barcode + "_" + "pass"
+                    elif fkey == "fail":
+                        bcod_file = ".".join(name + ["fail"] + [barcode] + ext)
+                        barcode_name = barcode + "_" + "fail"
+
+                    bc_files[barcode_name] = open(bcod_file, 'w')
+
+                if fkey == "pass":
+                    barcode_name = barcode + "_" + "pass"
+                elif fkey == "fail":
+                    barcode_name = barcode + "_" + "fail"
+                
+                bc_writer = bc_files[barcode_name]
+                bc_writer.write("{} barcode={}\n".format(read["header"], barcode))
+                bc_writer.write("{}\n".format(read["sequence"]))
+                bc_writer.write("+\n")
+                bc_writer.write("{}\n".format(read["qscore"]))
 
             write_output(args, read, OUT[fkey], SAM_OUT)
         q.task_done()
@@ -312,6 +369,9 @@ def write_worker(args, q, files, SAM_OUT):
         OUT["fail"].close()
     else:
         OUT["single"].close()
+    if args.barcode_kits:
+        for fffile in bc_files:
+            bc_files["fffile"].close()
     
     if args.profile:
         pr.disable()
@@ -473,6 +533,11 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     bcalled_read["out"] = "single"
                                     passes_filtering = "-"
                                 
+                                # do barcoding
+                                if args.barcode_kits:
+                                    bcalled_read["barcode_arrangement"] = call['metadata']["barcode_arrangement"]
+                                    
+                                
                                  # create summary data
                                 if args.seq_sum:
                                     minknow_events = call['metadata']['num_minknow_events']
@@ -497,6 +562,17 @@ def submit_read(args, iq, rq, address, config, params, N):
                                             sequence_length, bcalled_read["read_qscore"], strand_score_template, median, med_abs_dev, pore_type,
                                             experiment_id, sample_id, end_reason]])
                                     bcalled_read["sum_out"] = sum_out
+
+                                # create barcode summary data
+                                if args.barcode_kits:
+                                    bc_keys = ["barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
+                                                "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
+                                                "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
+                                                "barcode_rear_end_index"]
+                                    bc_sum_out = "\t".join([bcalled_read["read_id"]]+[str(call['metadata'][i]) for i in bc_keys])
+                                    bcalled_read["bc_sum_out"] = bc_sum_out
+
+
                                 bcalled_list.append(bcalled_read)
                             except Exception as error:
                                 # handle the exception
@@ -631,10 +707,14 @@ def main():
                         help="guppy log folder path")
     parser.add_argument("--moves_out", action="store_true",
                         help="output move table (sam format only)")
+
+    # read splitting
     parser.add_argument("--do_read_splitting", action="store_true",
                         help="Perform read splitting based on mid-strand adapter detection")
     parser.add_argument("--min_score_read_splitting", type=float, default=50.0,
                         help="Minimum mid-strand adapter score for reads to be split")
+    
+    # Adapter trimming
     parser.add_argument("--detect_adapter", action="store_true",
                         help="Enable detection of adapters at the front and rear of the sequence")
     parser.add_argument("--min_score_adapter", type=float, default=60.0,
@@ -645,6 +725,22 @@ def main():
                         help="Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.")
     parser.add_argument("--seq_sum", action="store_true",
                         help="[Experimental] - Write out sequencing_summary.txt file")
+    
+    # barcode demultiplexing/trimming
+    parser.add_argument("--barcode_kits", action="append",
+                        help="Strings naming each barcode kit to use. Default is to not do barcoding.")
+    parser.add_argument("--enable_trim_barcodes", action="store_true",
+                        help="Flag indicating that barcodes should be trimmed.")
+    parser.add_argument("--require_barcodes_both_ends", action="store_true",
+                        help="Flag indicating that barcodes must be at both ends.")
+    parser.add_argument("--detect_mid_strand_barcodes", action="store_true",
+                        help="Flag indicating that read will be marked as unclassified if barcodes appear within the strand itself.")
+    parser.add_argument("--min_score_barcode_front", type=float, default=60.0,
+                        help="Minimum score for a front barcode to be classified")
+    parser.add_argument("--min_score_barcode_rear", type=float, default=60.0,
+                        help="Minimum score for a rear barcode to be classified")
+    parser.add_argument("--min_score_barcode_mid", type=float, default=60.0,
+                        help="Minimum score for mid barcodes to be detected")
     # parser.add_argument("--max_queued_reads", default="2000",
     #                     help="Number of reads to send to guppy server queue")
     # parser.add_argument("--chunk_size", default="2000",
@@ -672,6 +768,7 @@ def main():
     
     print()
     print("               ~  buttery-eel - SLOW5 Guppy Basecalling  ~")
+    print("                            version: {}".format(VERSION))
     print("==========================================================================\n  ARGS\n==========================================================================")
     print("args:\n {}\n{}".format(args, other_server_args))
 
@@ -707,6 +804,7 @@ def main():
         client, address, config, params = client_one
         print(client)
         print("guppy_basecall_server started...")
+        print("basecaller version:", "{}".format(".".join([str(i) for i in client.get_software_version()])))
         print()
 
 

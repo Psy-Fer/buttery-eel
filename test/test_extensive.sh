@@ -71,13 +71,21 @@ test/test_qscore_split2.sh || die "test failed"
 echo ""
 echo "********************************************************************"
 
-
-echo "split reads"
+echo "read splitting"
 export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --do_read_splitting --trim_strategy dna"
 export OPTS_EEL=$OPTS_GUPPY
 test/test.sh || die "test failed"
 echo ""
 echo "********************************************************************"
+
+#rna
+export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
+export REFIDX=/genome/gencode.v40.transcripts.fa
+export PATH_TO_FAST5=/data/hasindu/hasindu2008.git/f5c/test/rna/
+export PATH_TO_BLOW5=/data/hasindu/hasindu2008.git/f5c/test/rna/reads.blow5
+export MODEL=rna_r9.4.1_70bps_fast_prom.cfg
+test/test.sh || die "test failed"
+
 
 echo "R10.4.1 DNA - FAST model - 500k reads"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
@@ -91,10 +99,3 @@ echo "********************************************************************"
 # move table
 
 
-#rna
-export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
-export REFIDX=/genome/gencode.v40.transcripts.fa
-export PATH_TO_FAST5=/data/hasindu/hasindu2008.git/f5c/test/rna/
-export PATH_TO_BLOW5=/data/hasindu/hasindu2008.git/f5c/test/rna/reads.blow5
-export MODEL=rna_r9.4.1_70bps_fast_prom.cfg
-test/test.sh || die "test failed"

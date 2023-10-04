@@ -1,5 +1,30 @@
 #!/bin/bash
 
+# MIT License
+
+# Copyright (c) 2023 Hasindu Gamaarachchi
+# Copyright (c) 2023 James Ferguson
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# script to execute buttery-eel with inbuilt qscore split and guppy on a test dataset and compare the results
+
 die() {
     echo "Error: $@" >&2
     exit 1
@@ -24,13 +49,15 @@ PORT=$(netstat -aln | awk '
 echo $PORT
 }
 
+CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
+test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"
 
 #defaults if not set
-test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-guppy-6.4.2/bin/
+test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-guppy-${CURRENT_GUPPY}/bin/
 test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
 test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
-test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3-multi-guppy-6.4.2/bin/activate
+test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
 test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_hac_prom.cfg
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp

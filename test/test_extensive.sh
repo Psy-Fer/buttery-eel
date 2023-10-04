@@ -15,12 +15,14 @@ instal_venv(){
     deactivate
 }
 
-export PATH_TO_GUPPY=/install/ont-guppy-6.4.2/bin/
+CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
+test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"
+export PATH_TO_GUPPY=/install/ont-guppy-${CURRENT_GUPPY}/bin/
 export GUPPY_OUT_TMP=ont-guppy-tmp
 export EEL_OUT_TMP=buttery_eel_tmp.fastq
 
 
-export PATH_TO_EEL_VENV=./venv3-multi-guppy-6.4.2/bin/activate
+export PATH_TO_EEL_VENV=./venv3/bin/activate
 
 
 export PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh

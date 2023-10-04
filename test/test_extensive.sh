@@ -79,6 +79,11 @@ test/test.sh &> r10_readsplit.log  || die "test failed. See r10_readsplit.log fo
 echo ""
 echo "********************************************************************"
 
+echo "seqsum"
+test/test_seqsum.sh &> seqsum.log || die "test failed. See seqsum.log for details"
+echo ""
+echo "********************************************************************"
+
 echo "remora"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_chr22/pod5
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_chr22/PGXX22394_reads_chr22.blow5
@@ -88,11 +93,6 @@ echo ""
 echo "********************************************************************"
 
 echo "move table"
-echo "Not yet implemented :("
-echo ""
-echo "********************************************************************"
-
-echo "seqsum"
 echo "Not yet implemented :("
 echo ""
 echo "********************************************************************"

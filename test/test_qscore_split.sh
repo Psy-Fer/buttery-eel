@@ -61,7 +61,7 @@ test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
 test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_hac_prom.cfg
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
-test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp.fastq
+test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
 
 #checks
 test -e ${PATH_TO_GUPPY}/guppy_basecaller || die  "${PATH_TO_GUPPY}/guppy_basecaller not found"
@@ -71,8 +71,8 @@ test -e ${PATH_TO_IDENTITY} || die  "${PATH_TO_IDENTITY} not found"
 
 #cleanups
 test -d ${GUPPY_OUT_TMP} && rm -r ${GUPPY_OUT_TMP}
-test -e ${EEL_OUT_TMP%.*}.pass.fastq && rm ${EEL_OUT_TMP%.*}.pass.fastq
-test -e ${EEL_OUT_TMP%.*}.fail.fastq && rm ${EEL_OUT_TMP%.*}.fail.fastq
+test -d ${EEL_OUT_TMP} && rm -r ${EEL_OUT_TMP}
+mkdir ${EEL_OUT_TMP} || die "Failed to create ${EEL_OUT_TMP}"
 
 #sourcing venv
 source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
@@ -84,7 +84,7 @@ ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.fastq  | cut -f 2-> ${G
 
 echo "Running buttery-eel"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP} --port ${PORT}  --use_tcp --qscore 7 ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT}  --use_tcp --qscore 7 ${OPTS_EEL} &> eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
     die "Memory usage is too high: $MEM"
@@ -92,11 +92,14 @@ else
     echo "Memory usage is OK: $MEM"
 fi
 cat eel.log
-${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP%.*}.pass.fastq | cut -f 2-> ${EEL_OUT_TMP}.identity
+${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP}/reads.pass.fastq | cut -f 2-> ${EEL_OUT_TMP}/reads.identity
+DUPLI=$(awk '{if(NR%4==1) {print $1}}' ${EEL_OUT_TMP}/reads.pass.fastq  | tr -d '@' | sort | uniq -c | sort -nr -k1,1 | head -1 | awk '{print $1}')
+test -z $DUPLI && die "Error in extracting reads ids"
+test $DUPLI -gt 1 && die "Duplicate reads found"
 
 echo "Comparing results"
-diff ${GUPPY_OUT_TMP}/reads_tmp.identity ${EEL_OUT_TMP}.identity || die "Results differ"
+diff ${GUPPY_OUT_TMP}/reads_tmp.identity ${EEL_OUT_TMP}/reads.identity || die "Results differ"
 
 echo "Test passed"
 cat ${GUPPY_OUT_TMP}/reads_tmp.identity
-cat ${EEL_OUT_TMP}.identity
+cat ${EEL_OUT_TMP}/reads.identity

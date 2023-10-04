@@ -93,7 +93,7 @@ else
     echo "Memory usage is OK: $MEM"
 fi
 cat eel.log
-/usr/bin/time -v python3 scripts/qscore_split.py ${EEL_OUT_TMP} reads -q 7
+/usr/bin/time -v python3 scripts/split_qscore.py ${EEL_OUT_TMP} reads -q 7
 
 ${PATH_TO_IDENTITY} ${REFIDX} reads.pass.fastq | cut -f 2-> ${EEL_OUT_TMP}.identity
 

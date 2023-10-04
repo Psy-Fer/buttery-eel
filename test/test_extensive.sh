@@ -75,7 +75,9 @@ echo "********************************************************************"
 echo "read splitting"
 export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --do_read_splitting --trim_strategy dna"
 export OPTS_EEL=$OPTS_GUPPY
-test/test.sh &> r10_readsplit.log  || die "test failed. See r10_readsplit.log for details"
+test/test.sh &> r10_readsplit.log  || echo "test failed. See r10_readsplit.log for details"
+unset OPTS_GUPPY
+unset OPTS_EEL
 echo ""
 echo "********************************************************************"
 

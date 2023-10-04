@@ -92,7 +92,7 @@ ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.bam | cut -f 2- >  ${GU
 #meth align
 ${SAMTOOLS} fastq -TMM,ML ${GUPPY_OUT_TMP}/reads_tmp.bam  |  ${MINIMAP2} -x map-ont -a -t 32 -y --secondary=no ${REFIDX} - | samtools sort  - > ${GUPPY_OUT_TMP}/reads_tmp_sorted.bam || die "remora mapping failed"
 ${SAMTOOLS} index ${GUPPY_OUT_TMP}/reads_tmp_sorted.bam || die "samtools index failed"
-${PATH_TO_MODKIT}--cpg -m 5mC -t 32 ${REF} ${GUPPY_OUT_TMP}/reads_tmp_sorted.bam -r chr22 |  grep -v nan > ${GUPPY_OUT_TMP}/remora.bedmethyl || die "modbam2bed failed"
+${PATH_TO_MODKIT} --cpg -m 5mC -t 32 ${REF} ${GUPPY_OUT_TMP}/reads_tmp_sorted.bam -r chr22 |  grep -v nan > ${GUPPY_OUT_TMP}/remora.bedmethyl || die "modbam2bed failed"
 python3 ${COMPARE_METH} ${BIS} ${GUPPY_OUT_TMP}/remora.bedmethyl > ${GUPPY_OUT_TMP}/remora.tsv || die "compare failed"
 cat ${GUPPY_OUT_TMP}/remora.tsv | tail -n+2 | cut -f3,5 | datamash ppearson 1:2 > ${GUPPY_OUT_TMP}/remora.compare || die "compare failed"
 
@@ -116,7 +116,7 @@ test $DUPLI -gt 1 && die "Duplicate reads found"
 #meth align
 ${SAMTOOLS} fastq -TMM,ML ${EEL_OUT_TMP}/reads.sam   |  ${MINIMAP2} -x map-ont -a -t 32 -y --secondary=no ${REFIDX} - | samtools sort  - > ${EEL_OUT_TMP}/reads_tmp_sorted.bam || die "remora mapping failed"
 ${SAMTOOLS} index ${EEL_OUT_TMP}/reads_tmp_sorted.bam || die "samtools index failed"
-${PATH_TO_MODKIT}--cpg -m 5mC -t 32 ${REF} ${EEL_OUT_TMP}/reads_tmp_sorted.bam -r chr22 |  grep -v nan > ${EEL_OUT_TMP}/remora.bedmethyl || die "modbam2bed failed"
+${PATH_TO_MODKIT} --cpg -m 5mC -t 32 ${REF} ${EEL_OUT_TMP}/reads_tmp_sorted.bam -r chr22 |  grep -v nan > ${EEL_OUT_TMP}/remora.bedmethyl || die "modbam2bed failed"
 python3 ${COMPARE_METH} ${BIS} ${EEL_OUT_TMP}/remora.bedmethyl > ${EEL_OUT_TMP}/remora.tsv || die "compare failed"
 cat ${EEL_OUT_TMP}/remora.tsv | tail -n+2 | cut -f3,5 | datamash ppearson 1:2 > ${EEL_OUT_TMP}/remora.compare || die "compare failed"
 

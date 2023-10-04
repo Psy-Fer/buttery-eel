@@ -87,9 +87,30 @@ test/test_remora.sh &> remora.log || die "test failed. See remora.log for detail
 echo ""
 echo "********************************************************************"
 
-#move table?
-#barcoding
-#qscore split in sam format
+echo "move table"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
+
+echo "seqsum"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
+
+echo "SAM format qscore split internal"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
+
+echo "SAM format qscore split script"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
+
+echo "Barcodes"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
 
 echo "R10.4.1 DNA - FAST model - 500k reads"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/

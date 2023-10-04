@@ -27,11 +27,11 @@ echo $PORT
 
 
 #defaults if not set
-test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-guppy-6.4.2/bin/
+test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-guppy-6.5.7/bin/
 test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/NA12878_prom_subsubsample/fast5/
 test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/NA12878_prom_subsubsample/reads.blow5
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
-test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3-multi-guppy-6.4.2/bin/activate
+test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
 test -z $MODEL && MODEL=dna_r9.4.1_450bps_fast_prom.cfg
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp

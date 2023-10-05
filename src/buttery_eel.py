@@ -322,16 +322,18 @@ def write_worker(args, q, files, SAM_OUT):
                     fkey = "pass"
                 else:
                     fkey = "fail"
+            # write sequencing_summary file
             if SUMMARY is not None:
                 summary_str = read["sum_out"]
                 sum_out = files[fkey] + "\t" + summary_str
                 write_summary(SUMMARY, sum_out)
             
             if args.barcode_kits:
-                # write summary
+                # write barcode summary
                 bc_summary_str = read["bc_sum_out"]
                 write_summary(BARCODE_SUMMARY, bc_summary_str)
-                # write barcode file
+                
+                # prep barcode writing
                 barcode = read["barcode_arrangement"]
                 barcode_name = barcode
                 if fkey == "pass":
@@ -339,6 +341,7 @@ def write_worker(args, q, files, SAM_OUT):
                 elif fkey == "fail":
                     barcode_name = barcode + "_" + "fail"
                 
+                # create file for new detected barcodes
                 if barcode_name not in bc_files:
                     fff = args.output.split(".")
                     # doing [-1:] rather than [-1] gives a list back
@@ -356,8 +359,7 @@ def write_worker(args, q, files, SAM_OUT):
                         bc_writer = bc_files[barcode_name]
                         sam_header(bc_writer)
 
-
-                
+                # write the barcode split sam/fastq
                 bc_writer = bc_files[barcode_name]
                 if SAM_OUT:
                     if args.call_mods:
@@ -700,7 +702,7 @@ def main():
     VERSION = __version__
 
     parser = MyParser(description="buttery-eel - wrapping guppy for SLOW5 basecalling",
-    epilog="Citation:...",
+    epilog="Citation: Hiruna Samarakoon, James M Ferguson, Hasindu Gamaarachchi, Ira W Deveson, Accelerated nanopore basecalling with SLOW5 data format, Bioinformatics, Volume 39, Issue 6, June 2023, btad352, https://doi.org/10.1093/bioinformatics/btad352",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 

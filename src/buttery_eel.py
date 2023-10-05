@@ -167,7 +167,7 @@ def sam_header(OUT, sep='\t'):
     PG1 = sep.join([
         '@PG',
         'ID:basecaller',
-        'PN:guppy',
+        'PN:ont basecaller',
         'VN:%s' % pyguppy_client_lib.__version__,
     ])
     PG2 = sep.join([
@@ -176,7 +176,7 @@ def sam_header(OUT, sep='\t'):
         'PN:buttery-eel',
         'VN:%s' % __version__,
         'CL:buttery-eel %s' % ' '.join(sys.argv[1:]),
-        'DS:guppy wrapper',
+        'DS:ont basecaller wrapper',
     ])
     OUT.write("{}\n".format(HD))
     OUT.write("{}\n".format(PG1))
@@ -334,7 +334,12 @@ def write_worker(args, q, files, SAM_OUT):
                 # write barcode file
                 barcode = read["barcode_arrangement"]
                 barcode_name = barcode
-                if barcode not in bc_files:
+                if fkey == "pass":
+                    barcode_name = barcode + "_" + "pass"
+                elif fkey == "fail":
+                    barcode_name = barcode + "_" + "fail"
+                
+                if barcode_name not in bc_files:
                     fff = args.output.split(".")
                     # doing [-1:] rather than [-1] gives a list back
                     name, ext = [".".join(fff[:-1])], fff[-1:]
@@ -343,23 +348,40 @@ def write_worker(args, q, files, SAM_OUT):
                     # otherwise split on pass/fail
                     if fkey == "pass":
                         bcod_file = ".".join(name + ["pass"] + [barcode] + ext)
-                        barcode_name = barcode + "_" + "pass"
                     elif fkey == "fail":
                         bcod_file = ".".join(name + ["fail"] + [barcode] + ext)
-                        barcode_name = barcode + "_" + "fail"
 
                     bc_files[barcode_name] = open(bcod_file, 'w')
+                    if SAM_OUT:
+                        bc_writer = bc_files[barcode_name]
+                        sam_header(bc_writer)
 
-                if fkey == "pass":
-                    barcode_name = barcode + "_" + "pass"
-                elif fkey == "fail":
-                    barcode_name = barcode + "_" + "fail"
+
                 
                 bc_writer = bc_files[barcode_name]
-                bc_writer.write("{} barcode={}\n".format(read["header"], barcode))
-                bc_writer.write("{}\n".format(read["sequence"]))
-                bc_writer.write("+\n")
-                bc_writer.write("{}\n".format(read["qscore"]))
+                if SAM_OUT:
+                    if args.call_mods:
+                        bc_writer.write("{}\tBC:Z:{}\n".format(read["sam_record"], barcode))
+                    elif args.moves_out:
+                        m = read["move_table"].tolist()
+                        move_str = ','.join(map(str, m))
+                        if args.do_read_splitting:
+                            bc_writer.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tBC:Z:{}\n".format(read["read_id"], read["sequence"], read["qscore"], read["model_stride"], move_str, read["int_read_qscore"], barcode))
+                        else:
+                            # do ns and ts tags
+                            bc_writer.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\tBC:Z:{}\n".format(read["read_id"], read["sequence"], read["qscore"], read["model_stride"], move_str, read["int_read_qscore"], read["num_samples"], read["trimmed_samples"], barcode))
+                    else:
+                        if args.do_read_splitting:
+                            bc_writer.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tBC:Z:{}\n".format(read["read_id"], read["sequence"], read["qscore"], read["int_read_qscore"], barcode))
+                        else:
+                            # do ns and ts tags
+                            bc_writer.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\tBC:Z:{}\n".format(read["read_id"], read["sequence"], read["qscore"], read["int_read_qscore"], read["num_samples"], read["trimmed_samples"], barcode))
+
+                else:
+                    bc_writer.write("{} barcode={}\n".format(read["header"], barcode))
+                    bc_writer.write("{}\n".format(read["sequence"]))
+                    bc_writer.write("+\n")
+                    bc_writer.write("{}\n".format(read["qscore"]))
 
             write_output(args, read, OUT[fkey], SAM_OUT)
         q.task_done()
@@ -371,7 +393,7 @@ def write_worker(args, q, files, SAM_OUT):
         OUT["single"].close()
     if args.barcode_kits:
         for fffile in bc_files:
-            bc_files["fffile"].close()
+            bc_files[fffile].close()
     
     if args.profile:
         pr.disable()
@@ -445,11 +467,14 @@ def submit_read(args, iq, rq, address, config, params, N):
     # submit a batch of reads to be basecalled
     with client_sub as client:
         while True:
+            read_store = {}
             batch = iq.get()
             if batch is None:
                 break
             for read in batch:
                 read_id = read['read_id']
+                if args.seq_sum:
+                    read_store[read_id] = read
                 # calculate scale
                 scale = calibration(read['digitisation'], read['range'])
                 result = False
@@ -487,6 +512,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                         if len(calls) > 1:
                             split_reads = True
                         for call in calls:
+                            # print(call)
                             try:
                                 bcalled_read = {}
                                 bcalled_read["sam_record"] = ""
@@ -545,19 +571,19 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     num_events = call['metadata']['num_events']
                                     median = round(call['metadata']['median'], 6)
                                     med_abs_dev = round(call['metadata']['med_abs_dev'], 6)
-                                    pore_type = read["header_array"]['pore_type']
-                                    experiment_id = read["header_array"]['protocol_group_id']
-                                    run_id = read["header_array"]["run_id"]
-                                    sample_id = read["header_array"]["sample_id"]
+                                    pore_type = read_store[read_id]["header_array"]['pore_type']
+                                    experiment_id = read_store[read_id]["header_array"]['protocol_group_id']
+                                    run_id = read_store[read_id]["header_array"]["run_id"]
+                                    sample_id = read_store[read_id]["header_array"]["sample_id"]
                                     strand_score_template = round(call['metadata']['call_score'], 6)
                                     sequence_length = call['metadata']['sequence_length']
-                                    channel = read["aux_data"]['channel_number']
-                                    mux = read["aux_data"]['start_mux']
-                                    start_time = read["aux_data"]['start_time']
-                                    end_reason_val = read["aux_data"]['end_reason']
-                                    end_reason = read["aux_data"]['end_reason_labels'][end_reason_val]
+                                    channel = read_store[read_id]["aux_data"]['channel_number']
+                                    mux = read_store[read_id]["aux_data"]['start_mux']
+                                    start_time = read_store[read_id]["aux_data"]['start_time']
+                                    end_reason_val = read_store[read_id]["aux_data"]['end_reason']
+                                    end_reason = read_store[read_id]["aux_data"]['end_reason_labels'][end_reason_val]
                                     output_name = ""
-                                    sum_out = "\t".join([str(i) for i in [read["slow5_filename"], bcalled_read["parent_read_id"], read_id, run_id, channel, mux, minknow_events,
+                                    sum_out = "\t".join([str(i) for i in [read_store[read_id]["slow5_filename"], bcalled_read["parent_read_id"], read_id, run_id, channel, mux, minknow_events,
                                             start_time, duration, passes_filtering, "-", num_events, "-",
                                             sequence_length, bcalled_read["read_qscore"], strand_score_template, median, med_abs_dev, pore_type,
                                             experiment_id, sample_id, end_reason]])
@@ -723,6 +749,8 @@ def main():
                         help="Flag indicating that adapters should be trimmed. Default is False.")
     parser.add_argument("--detect_mid_strand_adapter", action="store_true",
                         help="Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.")
+
+    # Sequencing Summary file
     parser.add_argument("--seq_sum", action="store_true",
                         help="[Experimental] - Write out sequencing_summary.txt file")
     

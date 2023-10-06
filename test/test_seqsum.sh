@@ -72,7 +72,10 @@ execute_test() {
 
 }
 
-FIELDS="read_id,run_id,channel,mux"
+FIELDS="read_id,run_id,channel,mux,num_events_template,sequence_length_template"
+FIELDS_APPROX="read_id,strand_score_template,median_template,mad_template"
+#mean_qscore_template has too many decimal points
+
 
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
 test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"
@@ -108,6 +111,7 @@ ${PATH_TO_GUPPY}/guppy_basecaller -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OU
 cat ${GUPPY_OUT_TMP}/pass/* ${GUPPY_OUT_TMP}/fail/* > ${GUPPY_OUT_TMP}/reads_tmp.fastq
 ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.fastq | cut -f 2- >  ${GUPPY_OUT_TMP}/reads_tmp.identity
 $CSVTK -t cut ${GUPPY_OUT_TMP}/sequencing_summary.txt -f ${FIELDS} | sort > ${GUPPY_OUT_TMP}/seq.summary || die "Failed to extract sequencing summary"
+$CSVTK -t cut ${GUPPY_OUT_TMP}/sequencing_summary.txt -f ${FIELDS_APPROX} | sort > ${GUPPY_OUT_TMP}/seqapprx.summary || die "Failed to extract sequencing summary"
 
 echo "Running buttery-eel"
 PORT=$(get_port)
@@ -124,6 +128,7 @@ DUPLI=$(awk '{if(NR%4==1) {print $1}}' ${EEL_OUT_TMP}/reads.fastq  | tr -d '@' |
 test -z $DUPLI && die "Error in extracting reads ids"
 test $DUPLI -gt 1 && die "Duplicate reads found"
 $CSVTK -t cut ${EEL_OUT_TMP}/sequencing_summary.txt -f ${FIELDS} |  sort > ${EEL_OUT_TMP}/seq.summary || die "Failed to extract sequencing summary"
+$CSVTK -t cut ${EEL_OUT_TMP}/sequencing_summary.txt -f ${FIELDS_APPROX} |  sort > ${EEL_OUT_TMP}/seqapprx.summary || die "Failed to extract sequencing summary"
 
 echo "Comparing results"
 diff ${GUPPY_OUT_TMP}/reads_tmp.identity ${EEL_OUT_TMP}/reads.identity || die "Results differ"
@@ -133,5 +138,9 @@ cat ${GUPPY_OUT_TMP}/reads_tmp.identity
 cat ${EEL_OUT_TMP}/reads.identity
 
 echo "Comparing sequencing summary"
-execute_test ${GUPPY_OUT_TMP}/seq.summary ${EEL_OUT_TMP}/seq.summary 10
+execute_test ${GUPPY_OUT_TMP}/seq.summary ${EEL_OUT_TMP}/seq.summary 25
+
+echo "Comparing sequencing summary - approx values"
+execute_test ${GUPPY_OUT_TMP}/seqapprx.summary ${EEL_OUT_TMP}/seqapprx.summary 30
+
 echo "Test passed"

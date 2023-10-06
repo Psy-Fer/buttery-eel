@@ -112,6 +112,21 @@ test/test_remora.sh &> remora.log || die "test failed. See remora.log for detail
 echo ""
 echo "********************************************************************"
 
+#TODO sam format without remora (tested anyway in demux)
+
+echo "demux"
+export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
+export MODEL=dna_r10.4.1_e8.2_400bps_fast_prom.cfg
+test/test_remora.sh &> remora.log || die "test failed. See remora.log for details"
+echo ""
+echo "********************************************************************"
+
+echo "demux with qscore split"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
+
 echo "move table"
 echo "Not yet implemented :("
 echo ""
@@ -127,10 +142,6 @@ echo "Not yet implemented :("
 echo ""
 echo "********************************************************************"
 
-echo "Barcodes"
-echo "Not yet implemented :("
-echo ""
-echo "********************************************************************"
 
 echo "R10.4.1 DNA - FAST model - 500k reads"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/

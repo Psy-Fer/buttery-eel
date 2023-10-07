@@ -284,7 +284,7 @@ def write_worker(args, q, files, SAM_OUT):
         else:
             BARCODE_SUMMARY = open("./barcoding_summary.txt", "w")
             print("Writing summary file to: ./barcoding_summary.txt")
-        BARCODE_SUMMARY_HEADER = "\t".join(["read_id", "barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
+        BARCODE_SUMMARY_HEADER = "\t".join(["read_id", "parent_read_id", "barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
                                             "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
                                             "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
                                             "barcode_rear_end_index"])
@@ -597,7 +597,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                                 "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
                                                 "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
                                                 "barcode_rear_end_index"]
-                                    bc_sum_out = "\t".join([bcalled_read["read_id"]]+[str(call['metadata'][i]) for i in bc_keys])
+                                    bc_sum_out = "\t".join([bcalled_read["read_id"]]+[bcalled_read["parent_read_id"]]+[str(call['metadata'][i]) for i in bc_keys])
                                     bcalled_read["bc_sum_out"] = bc_sum_out
 
 

@@ -73,7 +73,7 @@ execute_test() {
 }
 
 FIELDS="read_id,run_id,channel,mux,num_events_template,sequence_length_template"
-FIELDS_APPROX="read_id,strand_score_template,median_template,mad_template"
+FIELDS_APPROX="read_id,strand_score_template,median_template,mad_template,mean_qscore_template"
 #mean_qscore_template has too many decimal points
 
 
@@ -141,6 +141,6 @@ echo "Comparing sequencing summary"
 execute_test ${GUPPY_OUT_TMP}/seq.summary ${EEL_OUT_TMP}/seq.summary 25
 
 echo "Comparing sequencing summary - approx values"
-execute_test ${GUPPY_OUT_TMP}/seqapprx.summary ${EEL_OUT_TMP}/seqapprx.summary 30
+execute_test ${GUPPY_OUT_TMP}/seqapprx.summary ${EEL_OUT_TMP}/seqapprx.summary 50
 
 echo "Test passed"

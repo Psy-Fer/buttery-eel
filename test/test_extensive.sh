@@ -117,12 +117,12 @@ test/test_seqsum.sh &> seqsum.log || die "test failed. See seqsum.log for detail
 echo ""
 echo "********************************************************************"
 
-# echo "seqsum - multiple BLOW5"
-# export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
-# export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/blow5/
-# test/test_seqsum.sh &> seqsum_multiblow.log
-# echo ""
-# echo "********************************************************************"
+echo "seqsum - multiple BLOW5"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/blow5/
+test/test_seqsum.sh &> seqsum_multiblow.log
+echo ""
+echo "********************************************************************"
 
 echo "demux - FASTQ and SAM"
 export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
@@ -140,6 +140,11 @@ echo ""
 echo "********************************************************************"
 
 echo "move table"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
+
+echo "move table when adaptor/barcode trimming"
 echo "Not yet implemented :("
 echo ""
 echo "********************************************************************"
@@ -170,7 +175,7 @@ test/test.sh &> dna_500k.log || die "test failed. See dna_500k.log for details"
 echo ""
 echo "********************************************************************"
 
-#rna
+echo "R9.4.1 RNA - FAST model"
 export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
 export REFIDX=/genome/gencode.v40.transcripts.fa
 export PATH_TO_FAST5=/data/hasindu/hasindu2008.git/f5c/test/rna/

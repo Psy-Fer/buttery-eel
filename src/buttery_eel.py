@@ -860,6 +860,15 @@ def main():
         print("==========================================================================\n  Files\n==========================================================================")
         print("Reading from: {}".format(args.input))
         # sys.stderr.write("Writing to: {}\n".format(args.output))
+        # check that the output dir exists
+        if "/" in args.output:
+            # get everyting but the name of the file
+            output_path = "/".join(args.output.split("/")[:-1])
+            if not os.path.exists(output_path):
+                # If it doesn't exist, create the directory
+                print("{} does not exist, creating it".format(output_path))
+                os.makedirs(output_path)
+        
         if args.call_mods or args.output.split(".")[-1]=="sam":
             SAM_OUT = True
             if args.qscore:

@@ -72,7 +72,14 @@ test/test_qscore_split2.sh &> r10_split2.log || die "test failed. See r10_split2
 echo ""
 echo "********************************************************************"
 
+echo "SAM format qscore split script"
+echo "Not yet implemented :("
+echo ""
+echo "********************************************************************"
+
 echo "adapater trimming"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --trim_strategy dna --min_score_adapter 60"
 export OPTS_EEL=$OPTS_GUPPY
 test/test.sh &> r10_adaptertrim.log  || echo "test failed. See r10_adaptertrim.log for details"
@@ -82,6 +89,8 @@ echo ""
 echo "********************************************************************"
 
 echo "read splitting"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 export OPTS_GUPPY="--do_read_splitting --min_score_read_splitting 50"
 export OPTS_EEL=$OPTS_GUPPY
 test/test.sh &> r10_readsplit.log  || echo "test failed. See r10_readsplit.log for details"
@@ -91,6 +100,8 @@ echo ""
 echo "********************************************************************"
 
 echo "adapter trimming with read splitting"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --trim_strategy dna --min_score_adapter 60 --do_read_splitting --min_score_read_splitting 50"
 export OPTS_EEL=$OPTS_GUPPY
 test/test.sh &> r10_readsplittrim.log  || echo "test failed. See r10_readsplittrim.log for details"
@@ -100,30 +111,31 @@ echo ""
 echo "********************************************************************"
 
 echo "seqsum"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 test/test_seqsum.sh &> seqsum.log || die "test failed. See seqsum.log for details"
 echo ""
 echo "********************************************************************"
 
-echo "remora"
-export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_chr22/pod5
-export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_chr22/PGXX22394_reads_chr22.blow5
-export MODEL=dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_fast_prom.cfg
-test/test_remora.sh &> remora.log || die "test failed. See remora.log for details"
-echo ""
-echo "********************************************************************"
+# echo "seqsum - multiple BLOW5"
+# export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+# export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/blow5/
+# test/test_seqsum.sh &> seqsum_multiblow.log
+# echo ""
+# echo "********************************************************************"
 
-#TODO sam format without remora (tested anyway in demux)
-
-echo "demux"
+echo "demux - FASTQ and SAM"
 export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
 export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
 export MODEL=dna_r10.4.1_e8.2_400bps_fast_prom.cfg
-test/test_remora.sh &> remora.log || die "test failed. See remora.log for details"
+test/test_demux.sh &> demux.log || die "test failed. See demux.log for details"
 echo ""
 echo "********************************************************************"
 
-echo "demux with qscore split"
-echo "Not yet implemented :("
+echo "demux - qscore - FASTQ and SAM"
+export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
+test/test_demux_qscore_split.sh &> demux_qscore.log  || die "test failed. See demux_qscore.log for details"
 echo ""
 echo "********************************************************************"
 
@@ -132,16 +144,23 @@ echo "Not yet implemented :("
 echo ""
 echo "********************************************************************"
 
-echo "SAM format qscore split internal"
+echo "remora"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
+export MODEL=dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_fast_prom.cfg
+test/test_remora.sh &> remora.log || die "test failed. See remora.log for details"
+echo ""
+echo "********************************************************************"
+
+echo "remora with qscore split and dumux"
 echo "Not yet implemented :("
 echo ""
 echo "********************************************************************"
 
-echo "SAM format qscore split script"
+echo "remora with adaptor/barcode trimming"
 echo "Not yet implemented :("
 echo ""
 echo "********************************************************************"
-
 
 echo "R10.4.1 DNA - FAST model - 500k reads"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
@@ -159,8 +178,5 @@ export PATH_TO_BLOW5=/data/hasindu/hasindu2008.git/f5c/test/rna/reads.blow5
 export MODEL=rna_r9.4.1_70bps_fast_prom.cfg
 test/test.sh &> rna.log || die "test failed. See rna.log for details"
 
-
-
-# move table
 
 

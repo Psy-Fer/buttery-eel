@@ -559,7 +559,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                         passes_filtering = "FALSE"
                                 else:
                                     bcalled_read["out"] = "single"
-                                    passes_filtering = "-"
+                                    passes_filtering = "."
                                 
                                 # do barcoding
                                 if args.barcode_kits:

@@ -586,8 +586,8 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     end_reason = read_store[read_id]["aux_data"]['end_reason_labels'][end_reason_val]
                                     output_name = ""
                                     sum_out = "\t".join([str(i) for i in [read_store[read_id]["slow5_filename"], bcalled_read["parent_read_id"], read_id, run_id, channel, mux, minknow_events,
-                                            start_time, duration, passes_filtering, "-", num_events, "-",
-                                            sequence_length, bcalled_read["read_qscore"], strand_score_template, median, med_abs_dev, pore_type,
+                                            start_time, duration, passes_filtering, ".", num_events, ".",
+                                            sequence_length, round(bcalled_read["read_qscore"], 6), strand_score_template, median, med_abs_dev, pore_type,
                                             experiment_id, sample_id, end_reason]])
                                     bcalled_read["sum_out"] = sum_out
 

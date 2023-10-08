@@ -10,11 +10,11 @@ Things to think:
 
 | Col | Type   | Name                     | Description |
 | --- | ------ | ------------------------ | ----------- |
-| 1   | string | filename_fastq           | .           |
-| 2   | string | filename_slow5           | .           |
-| 3   | string | parent_read_id           | .           |
-| 4   | string | read_id                  | .           |
-| 5   | string | run_id                   | .           |
+| 1   | string | filename_fastq           | name of the fastq file this read was written to |
+| 2   | string | filename_slow5           | name of the slow5 file this read was read from  |
+| 3   | string | parent_read_id           | the original read_id if the read was split      |
+| 4   | string | read_id                  | the unique read_id                              |
+| 5   | string | run_id                   | the unique id of the run                        |
 | 6   | int    | channel                  | .           |
 | 7   | int    | mux                      | .           |
 | 8   | int    | minknow_events           | .           |

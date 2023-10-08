@@ -66,6 +66,7 @@ Things to think:
 | string | parent_read_id                | .           |
 | string | model_version_id              | .           |
 | int | mean_qscore                      | .           |
+| string | barcode                       | the barcode name. only if demultiplexing is enabled            |  
 
 # SAM tags
 

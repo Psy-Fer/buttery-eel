@@ -83,7 +83,7 @@ source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
 
 echo "Running guppy"
 ${PATH_TO_GUPPY}/guppy_basecaller -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}/basecalls  -x cuda:all --recursive --min_qscore 8 ${OPTS_GUPPY}
-${PATH_TO_GUPPY}/guppy_barcoder --barcode_kits ${BARCODE} -i ${GUPPY_OUT_TMP}/basecalls/pass -s ${GUPPY_OUT_TMP}/barcodes  -x cuda:all --recursive
+${PATH_TO_GUPPY}/guppy_barcoder --barcode_kits ${BARCODE} -i ${GUPPY_OUT_TMP}/basecalls/pass -s ${GUPPY_OUT_TMP}/barcodes  -x cuda:all --recursive ${OPTS_BARCODER}
 
 for NAME in ${LIST}; do
   dir=${GUPPY_OUT_TMP}/barcodes/${NAME}

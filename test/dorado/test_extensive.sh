@@ -101,7 +101,7 @@ echo "********************************************************************"
 echo "adapter trimming with read splitting"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
-export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --trim_strategy dna --min_score_adapter 60 --do_read_splitting --min_score_read_splitting 50"
+export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --min_score_adapter 60 --do_read_splitting --min_score_read_splitting 50"
 export OPTS_EEL=$OPTS_GUPPY
 test/dorado/test.sh &> r10_readsplittrim.log  || echo "test failed. See r10_readsplittrim.log for details"
 unset OPTS_GUPPY

@@ -45,8 +45,7 @@ PORT=$(netstat -aln | awk '
     for (i = 5000; i < 65000 && p[i]; i++){};
     if (i == 65000) {#exit 1};
     print i
-  }
-  ')
+  }')
 echo $PORT
 }
 

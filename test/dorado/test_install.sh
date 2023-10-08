@@ -25,7 +25,7 @@
 
 die(){
     echo "$@" >&2
-    exit 1
+    #exit 1
 }
 
 GUPPY_VERSION=7.1.4

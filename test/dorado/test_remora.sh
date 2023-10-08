@@ -23,7 +23,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# script to execute buttery-eel and guppy on a test dataset and compare the results
+# script to execute buttery-eel with remora and guppy on a test dataset and compare the results
 
 die() {
     echo "Error: $@" >&2
@@ -55,14 +55,20 @@ test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirement
 
 #defaults if not set
 test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-dorado-server-${CURRENT_GUPPY}/bin/
-test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/NA12878_prom_subsubsample/fast5/
-test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/NA12878_prom_subsubsample/reads.blow5
+test -z $PATH_TO_MODKIT && PATH_TO_MODKIT=/install/modbam2bed/modbam2bed
+test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_chr22/pod5/
+test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_chr22/PGXX22394_reads_chr22.blow5
+test -z $BIS && BIS=/data/slow5-testdata/hg2_prom_lsk114_chr22/chr22_bi.tsv
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
 test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
-test -z $MODEL && MODEL=dna_r9.4.1_450bps_fast_prom.cfg
+test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_fast_prom.cfg
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
+test -z $REF && REF=/genome/hg38noAlt.fa
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
 test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
+test -z $SAMTOOLS && SAMTOOLS=samtools
+test -z $MINIMAP2 && MINIMAP2=minimap2
+test -z $COMPARE_METH && COMPARE_METH=/home/hasindu/hasindu2008.git/f5c/scripts/compare_methylation.py
 
 #check if files exist
 test -e ${PATH_TO_GUPPY}/dorado_basecall_server || die  "${PATH_TO_GUPPY}/dorado_basecall_server not foundd"
@@ -84,15 +90,21 @@ LOGPATH=$(mktemp -d)
 ${PATH_TO_GUPPY}/dorado_basecall_server  --config ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
 pid=$!
 echo "Running client"
-${PATH_TO_GUPPY}/ont_basecall_client -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  --recursive ${OPTS_GUPPY} --port 5000 --use_tcp
+${PATH_TO_GUPPY}/ont_basecall_client -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  --recursive --port 5000 --use_tcp ${OPTS_GUPPY}
 kill $pid
+${SAMTOOLS} cat ${GUPPY_OUT_TMP}/pass/*.bam ${GUPPY_OUT_TMP}/fail/*.bam -o ${GUPPY_OUT_TMP}/reads_tmp.bam
+${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.bam | cut -f 2- >  ${GUPPY_OUT_TMP}/reads_tmp.identity
 
-cat ${GUPPY_OUT_TMP}/pass/* ${GUPPY_OUT_TMP}/fail/* > ${GUPPY_OUT_TMP}/reads_tmp.fastq
-${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.fastq | cut -f 2- >  ${GUPPY_OUT_TMP}/reads_tmp.identity
+#meth align
+${SAMTOOLS} fastq -TMM,ML ${GUPPY_OUT_TMP}/reads_tmp.bam  |  ${MINIMAP2} -x map-ont -a -t 32 -y --secondary=no ${REFIDX} - | samtools sort  - > ${GUPPY_OUT_TMP}/reads_tmp_sorted.bam || die "remora mapping failed"
+${SAMTOOLS} index ${GUPPY_OUT_TMP}/reads_tmp_sorted.bam || die "samtools index failed"
+${PATH_TO_MODKIT} --cpg -m 5mC -t 32 ${REF} ${GUPPY_OUT_TMP}/reads_tmp_sorted.bam -r chr22 |  grep -v nan > ${GUPPY_OUT_TMP}/remora.bedmethyl || die "modbam2bed failed"
+python3 ${COMPARE_METH} ${BIS} ${GUPPY_OUT_TMP}/remora.bedmethyl > ${GUPPY_OUT_TMP}/remora.tsv || die "compare failed"
+cat ${GUPPY_OUT_TMP}/remora.tsv | tail -n+2 | cut -f3,5 | datamash ppearson 1:2 > ${GUPPY_OUT_TMP}/remora.compare || die "compare failed"
 
 echo "Running buttery-eel"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT}  --use_tcp ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.sam --port ${PORT} --call_mods --use_tcp ${OPTS_EEL} &> eel.log
 cat eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
@@ -100,15 +112,30 @@ if [ $MEM -gt 8000000 ]; then
 else
     echo "Memory usage is OK: $MEM"
 fi
-${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP}/reads.fastq | cut -f 2-> ${EEL_OUT_TMP}/reads.identity
-DUPLI=$(awk '{if(NR%4==1) {print $1}}' ${EEL_OUT_TMP}/reads.fastq  | tr -d '@' | sort | uniq -c | sort -nr -k1,1 | head -1 | awk '{print $1}')
-test -z $DUPLI && die "Error in extracting reads ids"
+${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP}/reads.sam  | cut -f 2-> ${EEL_OUT_TMP}/reads.identity
+
+#dupli check
+DUPLI=$(${SAMTOOLS} view ${EEL_OUT_TMP}/reads.sam | sort | uniq -c | sort -nr -k1,1 | head -1 | awk '{print $1}')
+test -z $DUPLI && die "Error in extracting reads ids "
 test $DUPLI -gt 1 && die "Duplicate reads found"
 
-echo "Comparing results"
+#meth align
+${SAMTOOLS} fastq -TMM,ML ${EEL_OUT_TMP}/reads.sam   |  ${MINIMAP2} -x map-ont -a -t 32 -y --secondary=no ${REFIDX} - | samtools sort  - > ${EEL_OUT_TMP}/reads_tmp_sorted.bam || die "remora mapping failed"
+${SAMTOOLS} index ${EEL_OUT_TMP}/reads_tmp_sorted.bam || die "samtools index failed"
+${PATH_TO_MODKIT} --cpg -m 5mC -t 32 ${REF} ${EEL_OUT_TMP}/reads_tmp_sorted.bam -r chr22 |  grep -v nan > ${EEL_OUT_TMP}/remora.bedmethyl || die "modbam2bed failed"
+python3 ${COMPARE_METH} ${BIS} ${EEL_OUT_TMP}/remora.bedmethyl > ${EEL_OUT_TMP}/remora.tsv || die "compare failed"
+cat ${EEL_OUT_TMP}/remora.tsv | tail -n+2 | cut -f3,5 | datamash ppearson 1:2 > ${EEL_OUT_TMP}/remora.compare || die "compare failed"
+
+
+echo "Comparing Identity results"
 diff ${GUPPY_OUT_TMP}/reads_tmp.identity ${EEL_OUT_TMP}/reads.identity || die "Results differ"
 
-echo "Test passed"
+echo "Identity Test passed"
 cat ${GUPPY_OUT_TMP}/reads_tmp.identity
 cat ${EEL_OUT_TMP}/reads.identity
+
+echo "Comparing methylation results"
+diff ${GUPPY_OUT_TMP}/remora.compare ${EEL_OUT_TMP}/remora.compare || die "Results differ"
+cat ${GUPPY_OUT_TMP}/remora.compare
+cat ${EEL_OUT_TMP}/remora.compare
 

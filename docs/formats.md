@@ -61,5 +61,16 @@ Things to think:
 
 
 # FASTQ header tags
+| Type   | Name                          | Description |
+| ------ | ----------------------------- | ----------- |
+| string | parent_read_id                | .           |
+| string | model_version_id              | .           |
+| int | mean_qscore                      | .           |
 
 # SAM tags
+
+| Type   | Name               | Description |
+| ------ | ------------------ | ----------- |
+| int (i) | qs                | .           |
+| int (i) | ns                | .           |
+| int (i) | ts                | .           |

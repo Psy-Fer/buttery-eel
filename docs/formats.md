@@ -29,10 +29,9 @@ Things to think:
 | 17  | float  | strand_score_template    | .                                       |
 | 18  | float  | median_template          | median of the template                             |
 | 19  | float  | mad_template             | median absolute difference for the template        |
-| 20  | string | pore_type                | type of pore, likely to be not_set                 |
-| 21  | string | experiment_id            | experiment ID if there is one present              |
-| 22  | string | sample_id                | the sample ID if there is one present              |
-| 23  | string | end_reason               | the reason why the read ended                      |
+| 20  | string | experiment_id            | experiment ID if there is one present              |
+| 21  | string | sample_id                | the sample ID if there is one present              |
+| 22  | string | end_reason               | the reason why the read ended                      |
 
 
 # barcode_summary

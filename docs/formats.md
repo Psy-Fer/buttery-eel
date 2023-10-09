@@ -13,11 +13,9 @@ Things to think:
 | --- | ------ | ------------------------ | ----          | ----------- |
 | 1   | string | filename_fastq           | reads.fastq | name of the fastq file this read was written to    |
 | 2   | string | filename_slow5           | reads.blow5 | name of the slow5 file this read was read from     |
-| 3   | string | parent_read_id           |  | the original read_id if the read was split.  If not split, will be the same as the read_id column below.             |
-| 4   | string | read_id                  | <sub>f750bda8-0417-429f-b2ec-54c700543ed6
-</sub> | the unique read_id. This is a Universally unique identifier (UUID) version 4 and should be unique for any read from any device.   |
-| 5   | string | run_id                   | <sub>dc60b20f5078b3546ded810fb828b49c438fbd89322</sub>
-| The unique run ID which will be different for each run                           |
+| 3   | string | parent_read_id           |             | the original read_id if the read was split.  If not split, will be the same as the read_id column below.             |
+| 4   | string | read_id                  | <sub>f750bda8-0417-429f-b2ec-54c700543ed6 </sub> | the unique read_id. This is a Universally unique identifier (UUID) version 4 and should be unique for any read from any device.   |
+| 5   | string | run_id                   | <sub>dc60b20f5078b3546ded810fb828b49c438fbd89322</sub> | The unique run ID which will be different for each run              |
 | 6   | int    | channel                  | 1 | The channel number.  See Table 5 of [slow5 specification](https://hasindu2008.github.io/slow5specs/slow5-v1.0.0.pdf) for details. |
 | 7   | int    | mux                      | 2 | The MUX setting for the channel when the read began. See Table 5 of [slow5 specification](https://hasindu2008.github.io/slow5specs/slow5-v1.0.0.pdf) for details                                    |
 | 8   | int    | minknow_events           | | an internal value                                  |
@@ -63,17 +61,20 @@ Things to think:
 
 
 # FASTQ header tags
-| Type   | Name                          | Description |
-| ------ | ----------------------------- | ----------- |
-| string | parent_read_id                | the original read_id if the read was split           |
-| string | model_version_id              | the basecalling model used           |
-| int | mean_qscore                      | the mean qscore of the read           |
-| string | barcode                       | the barcode name. only if demultiplexing is enabled            |
+| Type   | Name                          | Example value | Description |
+| ------ | ----------------------------- | --------------| ----------- |
+| string | parent_read_id                |  <sub>f750bda8-0417-429f-b2ec-54c700543ed6</sub>             | the original read_id if the read was split. If not split, will be the same as the read_id.          |
+| string | model_version_id              |  dna_r10.4.1_e8.2_400bps_fast-v4.1.0             | the basecalling model used           |
+| int | mean_qscore                      |  11             | the mean qscore of the read           |
+| string | barcode                       |  barcode10             | the barcode name. only if demultiplexing is enabled.            |
 
 # SAM tags
 
-| Type   | Name               | Description |
-| ------ | ------------------ | ----------- |
-| int (i) | qs                | the mean qscore of the read           |
-| int (i) | ns                | number of samples           |
-| int (i) | ts                | number of trimmed samples           |
+Non-standard SAM tags are documented here, not the standard ones for barcode and methylation etc.
+
+| Type   | Name               | Example value |Description |
+| ------ | ------------------ | ------------- | ----------- |
+| int (i) | qs                | 11 | the mean qscore of the read           |
+| int (i) | ns                | 3196 | number of samples           |
+| int (i) | ts                | 0 | number of trimmed samples           |
+| string (Z) | pi                | <sub>f750bda8-0417-429f-b2ec-54c700543ed6</sub>  | The original read_id if the read was split. If not split, will be the same as the read_id.           |

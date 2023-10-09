@@ -271,7 +271,7 @@ def write_worker(args, q, files, SAM_OUT):
                                     "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
                                     "passes_filtering", "template_start", "num_events_template", "template_duration",
                                     "sequence_length_template", "mean_qscore_template", "strand_score_template",
-                                    "median_template", "mad_template", "pore_type", "experiment_id", "sample_id", "end_reason"])
+                                    "median_template", "mad_template", "experiment_id", "sample_id", "end_reason"])
         write_summary(SUMMARY, SUMMARY_HEADER)
     else:
         SUMMARY = None
@@ -573,7 +573,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     num_events = call['metadata']['num_events']
                                     median = round(call['metadata']['median'], 6)
                                     med_abs_dev = round(call['metadata']['med_abs_dev'], 6)
-                                    pore_type = read_store[read_id]["header_array"]['pore_type']
+                                    # pore_type = read_store[read_id]["header_array"].get('pore_type', 'not_set')
                                     experiment_id = read_store[read_id]["header_array"]['protocol_group_id']
                                     run_id = read_store[read_id]["header_array"]["run_id"]
                                     sample_id = read_store[read_id]["header_array"]["sample_id"]
@@ -587,7 +587,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     output_name = ""
                                     sum_out = "\t".join([str(i) for i in [read_store[read_id]["slow5_filename"], bcalled_read["parent_read_id"], read_id, run_id, channel, mux, minknow_events,
                                             start_time, duration, passes_filtering, ".", num_events, ".",
-                                            sequence_length, round(bcalled_read["read_qscore"], 6), strand_score_template, median, med_abs_dev, pore_type,
+                                            sequence_length, round(bcalled_read["read_qscore"], 6), strand_score_template, median, med_abs_dev,
                                             experiment_id, sample_id, end_reason]])
                                     bcalled_read["sum_out"] = sum_out
 

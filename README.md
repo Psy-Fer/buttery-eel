@@ -71,19 +71,23 @@ usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--guppy
                    [--detect_mid_strand_barcodes] [--min_score_barcode_front MIN_SCORE_BARCODE_FRONT] [--min_score_barcode_rear MIN_SCORE_BARCODE_REAR]
                    [--min_score_barcode_mid MIN_SCORE_BARCODE_MID] [--profile] [-v]
 
-buttery-eel - wrapping guppy for SLOW5 basecalling
+buttery-eel - wrapping guppy/dorado for SLOW5 basecalling
 
 optional arguments:
   -h, --help            show this help message and exit
+  --profile             run cProfile on all processes - for debugging benchmarking (default: False)
+  -v, --version         Prints version
+
+Run Options:
   -i INPUT, --input INPUT
                         input blow5 file or directory for basecalling (default: None)
   -o OUTPUT, --output OUTPUT
                         output .fastq or unaligned .sam file to write (default: None)
   -g GUPPY_BIN, --guppy_bin GUPPY_BIN
-                        path to ont_guppy/bin or ont_dorado_server/bin/ folder (default: None)
+                        path to ont_guppy/bin or ont-dorado-server/bin folder (default: None)
   --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
   --guppy_batchsize GUPPY_BATCHSIZE
-                        number of reads to send to guppy at a time. (default: 4000)
+                        number of reads to send to guppy/dorado at a time. (default: 4000)
   --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
   -q QSCORE, --qscore QSCORE
                         A mean q-score to split fastq/sam files into pass/fail output (default: None)
@@ -95,11 +99,18 @@ optional arguments:
   --quiet               Don't print progress (default: False)
   --max_read_queue_size MAX_READ_QUEUE_SIZE
                         Number of reads to process at a time reading slow5 (default: 20000)
-  --log LOG             guppy log folder path (default: buttery_guppy_logs)
+  --log LOG             guppy/dorado log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
+
+Sequencing summary Options:
+  --seq_sum             Write out sequencing_summary.txt file (default: False)
+
+Read splitting Options:
   --do_read_splitting   Perform read splitting based on mid-strand adapter detection (default: False)
   --min_score_read_splitting MIN_SCORE_READ_SPLITTING
                         Minimum mid-strand adapter score for reads to be split (default: 50.0)
+
+Adapter trimming Options:
   --detect_adapter      Enable detection of adapters at the front and rear of the sequence (default: False)
   --min_score_adapter MIN_SCORE_ADAPTER
                         Minimum score for a front or rear adapter to be classified. Default is 60. (default: 60.0)
@@ -107,7 +118,8 @@ optional arguments:
   --detect_mid_strand_adapter
                         Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False. (default:
                         False)
-  --seq_sum             [Experimental] - Write out sequencing_summary.txt file (default: False)
+
+Barcode demultiplexing Options:
   --barcode_kits BARCODE_KITS
                         Strings naming each barcode kit to use. Default is to not do barcoding. (default: None)
   --enable_trim_barcodes
@@ -122,8 +134,6 @@ optional arguments:
                         Minimum score for a rear barcode to be classified (default: 60.0)
   --min_score_barcode_mid MIN_SCORE_BARCODE_MID
                         Minimum score for mid barcodes to be detected (default: 60.0)
-  --profile             run cProfile on all processes - for debugging benchmarking (default: False)
-  -v, --version         Prints version
 ```
 
 Set up flags needed and run (`--use_tcp` is needed but not forced in these early versions):

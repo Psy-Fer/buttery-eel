@@ -267,7 +267,7 @@ def write_worker(args, q, files, SAM_OUT):
             SUMMARY = open("./sequencing_summary.txt", "w")
             print("Writing summary file to: ./sequencing_summary.txt")
 
-        SUMMARY_HEADER = "\t".join(["filename_fastq", "filename_slow5", "parent_read_id",
+        SUMMARY_HEADER = "\t".join(["filename_out", "filename_slow5", "parent_read_id",
                                     "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
                                     "passes_filtering", "template_start", "num_events_template", "template_duration",
                                     "sequence_length_template", "mean_qscore_template", "strand_score_template",
@@ -587,7 +587,8 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     sequence_length = call['metadata']['sequence_length']
                                     channel = read_store[read_id]["aux_data"]['channel_number']
                                     mux = read_store[read_id]["aux_data"]['start_mux']
-                                    start_time = read_store[read_id]["aux_data"]['start_time']
+                                    sample_rate = float(read_store[read_id]["sampling_rate"])
+                                    start_time = round(float(read_store[read_id]["aux_data"]['start_time']) / sample_rate, 6)
                                     end_reason_val = read_store[read_id]["aux_data"]['end_reason']
                                     end_reason = read_store[read_id]["aux_data"]['end_reason_labels'][end_reason_val]
                                     output_name = ""

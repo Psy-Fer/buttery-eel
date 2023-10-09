@@ -16,7 +16,7 @@ Things to think:
 | 3   | string | parent_read_id           |  | the original read_id if the read was split.  If not split, will be the same as the read_id column below.             |
 | 4   | string | read_id                  | <sub>f750bda8-0417-429f-b2ec-54c700543ed6
 </sub> | the unique read_id. This is a Universally unique identifier (UUID) version 4 and should be unique for any read from any device.   |
-| 5   | string | run_id                   | dc60b20f5078b3546ded810fb828b49c438fbd89322
+| 5   | string | run_id                   | <sub>dc60b20f5078b3546ded810fb828b49c438fbd89322</sub>
 | The unique run ID which will be different for each run                           |
 | 6   | int    | channel                  | 1 | The channel number.  See Table 5 of [slow5 specification](https://hasindu2008.github.io/slow5specs/slow5-v1.0.0.pdf) for details. |
 | 7   | int    | mux                      | 2 | The MUX setting for the channel when the read began. See Table 5 of [slow5 specification](https://hasindu2008.github.io/slow5specs/slow5-v1.0.0.pdf) for details                                    |

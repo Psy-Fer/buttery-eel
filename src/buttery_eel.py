@@ -859,16 +859,13 @@ def main():
         # ==========================================================================
         print("==========================================================================\n  Files\n==========================================================================")
         print("Reading from: {}".format(args.input))
-        if args.input.split(".")[-1] not in ["slow5", "blow5"]:
-            print("input file is not a slow5 or blow5 file")
-            parser.print_help(sys.stderr)
-            sys.exit(1)
 
         print("Output: {}".format(args.output))
         if args.output.split(".")[-1] not in ["fastq", "sam"]:
             print("output file is not a fastq or sam file")
             parser.print_help(sys.stderr)
             sys.exit(1)
+            
         # check that the output dir exists
         if "/" in args.output:
             # get everyting but the name of the file

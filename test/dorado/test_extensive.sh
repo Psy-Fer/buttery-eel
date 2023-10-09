@@ -25,7 +25,7 @@
 
 die() {
     echo "Error: $@" >&2
-    #exit 1
+    exit 1
 }
 
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
@@ -116,12 +116,12 @@ test/dorado/test_seqsum.sh &> seqsum.log || die "test failed. See seqsum.log for
 echo ""
 echo "********************************************************************"
 
-# echo "seqsum - multiple BLOW5"
-# export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
-# export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/blow5/
-# test/dorado/test_seqsum.sh &> seqsum_multiblow.log
-# echo ""
-# echo "********************************************************************"
+echo "seqsum - multiple BLOW5"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/blow5/
+test/dorado/test_seqsum.sh &> seqsum_multiblow.log
+echo ""
+echo "********************************************************************"
 
 echo "demux - FASTQ and SAM"
 export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/

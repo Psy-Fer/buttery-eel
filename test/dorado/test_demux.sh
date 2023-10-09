@@ -27,8 +27,9 @@
 
 die() {
     echo "Error: $@" >&2
-    #exit 1
+    exit 1
 }
+
 
 
 get_port(){
@@ -43,12 +44,11 @@ PORT=$(netstat -aln | awk '
   }
   END {
     for (i = 5000; i < 65000 && p[i]; i++){};
-    if (i == 65000) {#exit 1};
+    if (i == 65000) {exit 1};
     print i
   }')
 echo $PORT
 }
-
 LIST="barcode02 barcode25 barcode95 unclassified"
 
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)

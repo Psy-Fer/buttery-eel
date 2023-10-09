@@ -701,75 +701,80 @@ def main():
 
     VERSION = __version__
 
-    parser = MyParser(description="buttery-eel - wrapping guppy for SLOW5 basecalling",
+    parser = MyParser(description="buttery-eel - wrapping guppy/dorado for SLOW5 basecalling",
     epilog="Citation: Hiruna Samarakoon, James M Ferguson, Hasindu Gamaarachchi, Ira W Deveson, Accelerated nanopore basecalling with SLOW5 data format, Bioinformatics, Volume 39, Issue 6, June 2023, btad352, https://doi.org/10.1093/bioinformatics/btad352",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+    run_options = parser.add_argument_group("Run Options")
+    seq_sum = parser.add_argument_group("Sequencing summary Options")
+    read_splitting = parser.add_argument_group("Read splitting Options")
+    adapter_trimming = parser.add_argument_group("Adapter trimming Options")
+    barcode_dmux = parser.add_argument_group("Barcode demultiplexing Options")
 
     # Args for the wrapper, and then probably best to just have free form args for guppy
-    parser.add_argument("-i", "--input", required=True,
+    run_options.add_argument("-i", "--input", required=True,
                         help="input blow5 file or directory for basecalling")
-    parser.add_argument("-o", "--output", required=True,
+    run_options.add_argument("-o", "--output", required=True,
                         help="output .fastq or unaligned .sam file to write")
-    parser.add_argument("-g", "--guppy_bin", type=Path, required=True,
-                        help="path to ont_guppy/bin folder")
-    parser.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
+    run_options.add_argument("-g", "--guppy_bin", type=Path, required=True,
+                        help="path to ont_guppy/bin or ont-dorado-server/bin folder")
+    run_options.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                         help="basecalling model config")
-    parser.add_argument("--guppy_batchsize", type=int, default=4000,
-                        help="number of reads to send to guppy at a time.")
-    parser.add_argument("--call_mods", action="store_true",
+    run_options.add_argument("--guppy_batchsize", type=int, default=4000,
+                        help="number of reads to send to guppy/dorado at a time.")
+    run_options.add_argument("--call_mods", action="store_true",
                         help="output MM/ML tags for methylation - will output sam - use with appropriate mod config")
-    parser.add_argument("-q", "--qscore", type=int,
+    run_options.add_argument("-q", "--qscore", type=int,
                         help="A mean q-score to split fastq/sam files into pass/fail output")
-    parser.add_argument("--slow5_threads", type=int, default=4,
+    run_options.add_argument("--slow5_threads", type=int, default=4,
                         help="Number of threads to use reading slow5 file")
-    parser.add_argument("--procs", type=int, default=4,
+    run_options.add_argument("--procs", type=int, default=4,
                         help="Number of worker processes to use processing reads")
-    parser.add_argument("--slow5_batchsize", type=int, default=4000,
+    run_options.add_argument("--slow5_batchsize", type=int, default=4000,
                         help="Number of reads to process at a time reading slow5")
-    parser.add_argument("--quiet", action="store_true",
+    run_options.add_argument("--quiet", action="store_true",
                         help="Don't print progress")
-    parser.add_argument("--max_read_queue_size", type=int, default=20000,
+    run_options.add_argument("--max_read_queue_size", type=int, default=20000,
                         help="Number of reads to process at a time reading slow5")
-    parser.add_argument("--log", default="buttery_guppy_logs",
-                        help="guppy log folder path")
-    parser.add_argument("--moves_out", action="store_true",
+    run_options.add_argument("--log", default="buttery_basecaller_logs",
+                        help="guppy/dorado log folder path")
+    run_options.add_argument("--moves_out", action="store_true",
                         help="output move table (sam format only)")
 
     # read splitting
-    parser.add_argument("--do_read_splitting", action="store_true",
+    read_splitting.add_argument("--do_read_splitting", action="store_true",
                         help="Perform read splitting based on mid-strand adapter detection")
-    parser.add_argument("--min_score_read_splitting", type=float, default=50.0,
+    read_splitting.add_argument("--min_score_read_splitting", type=float, default=50.0,
                         help="Minimum mid-strand adapter score for reads to be split")
     
     # Adapter trimming
-    parser.add_argument("--detect_adapter", action="store_true",
+    adapter_trimming.add_argument("--detect_adapter", action="store_true",
                         help="Enable detection of adapters at the front and rear of the sequence")
-    parser.add_argument("--min_score_adapter", type=float, default=60.0,
+    adapter_trimming.add_argument("--min_score_adapter", type=float, default=60.0,
                         help="Minimum score for a front or rear adapter to be classified. Default is 60.")
-    parser.add_argument("--trim_adapters", action="store_true",
+    adapter_trimming.add_argument("--trim_adapters", action="store_true",
                         help="Flag indicating that adapters should be trimmed. Default is False.")
-    parser.add_argument("--detect_mid_strand_adapter", action="store_true",
+    adapter_trimming.add_argument("--detect_mid_strand_adapter", action="store_true",
                         help="Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False.")
 
     # Sequencing Summary file
-    parser.add_argument("--seq_sum", action="store_true",
-                        help="[Experimental] - Write out sequencing_summary.txt file")
+    seq_sum.add_argument("--seq_sum", action="store_true",
+                        help="Write out sequencing_summary.txt file")
     
     # barcode demultiplexing/trimming
-    parser.add_argument("--barcode_kits", action="append",
+    barcode_dmux.add_argument("--barcode_kits", action="append",
                         help="Strings naming each barcode kit to use. Default is to not do barcoding.")
-    parser.add_argument("--enable_trim_barcodes", action="store_true",
+    barcode_dmux.add_argument("--enable_trim_barcodes", action="store_true",
                         help="Flag indicating that barcodes should be trimmed.")
-    parser.add_argument("--require_barcodes_both_ends", action="store_true",
+    barcode_dmux.add_argument("--require_barcodes_both_ends", action="store_true",
                         help="Flag indicating that barcodes must be at both ends.")
-    parser.add_argument("--detect_mid_strand_barcodes", action="store_true",
+    barcode_dmux.add_argument("--detect_mid_strand_barcodes", action="store_true",
                         help="Flag indicating that read will be marked as unclassified if barcodes appear within the strand itself.")
-    parser.add_argument("--min_score_barcode_front", type=float, default=60.0,
+    barcode_dmux.add_argument("--min_score_barcode_front", type=float, default=60.0,
                         help="Minimum score for a front barcode to be classified")
-    parser.add_argument("--min_score_barcode_rear", type=float, default=60.0,
+    barcode_dmux.add_argument("--min_score_barcode_rear", type=float, default=60.0,
                         help="Minimum score for a rear barcode to be classified")
-    parser.add_argument("--min_score_barcode_mid", type=float, default=60.0,
+    barcode_dmux.add_argument("--min_score_barcode_mid", type=float, default=60.0,
                         help="Minimum score for mid barcodes to be detected")
     # parser.add_argument("--max_queued_reads", default="2000",
     #                     help="Number of reads to send to guppy server queue")
@@ -777,7 +782,7 @@ def main():
     #                     help="signal chunk size, lower this for lower VRAM GPUs")
     parser.add_argument("--profile", action="store_true",
                         help="run cProfile on all processes - for debugging benchmarking")
-    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wrapping guppy for SLOW5 basecalling version: {}".format(VERSION),
+    parser.add_argument("-v", "--version", action='version', version="buttery-eel - wrapping guppy/dorado for SLOW5 basecalling version: {}".format(VERSION),
                         help="Prints version")
     # parser.add_argument("--debug", action="store_true",
     #                     help="Set logging to debug mode")
@@ -797,7 +802,7 @@ def main():
         sys.exit(1)
     
     print()
-    print("               ~  buttery-eel - SLOW5 Guppy Basecalling  ~")
+    print("               ~  buttery-eel - SLOW5 Guppy/Dorado Basecalling  ~")
     print("                            version: {}".format(VERSION))
     print("==========================================================================\n  ARGS\n==========================================================================")
     print("args:\n {}\n{}".format(args, other_server_args))
@@ -821,7 +826,7 @@ def main():
         print("MOD CALLING VERSION CHECK: >6.3.0? {}".format(check))
         print()
         if not check:
-            print("ERROR: Please use guppy and ont-pyguppy-client-lib version 6.3.0 or higher for modification calling")
+            print("ERROR: Please use guppy/dorado and ont-pyguppy-client-lib version 6.3.0 or higher for modification calling")
             print()
             sys.exit(1)
 
@@ -829,11 +834,11 @@ def main():
     # Start guppy_basecall_server
     # ==========================================================================
     print("\n")
-    print("==========================================================================\n  Starting Guppy Basecalling Server\n==========================================================================")
+    print("==========================================================================\n  Starting Guppy/Dorado Basecalling Server\n==========================================================================")
     with start_guppy_server_and_client(args, other_server_args) as client_one:
         client, address, config, params = client_one
         print(client)
-        print("guppy_basecall_server started...")
+        print("guppy/dorado started...")
         print("basecaller version:", "{}".format(".".join([str(i) for i in client.get_software_version()])))
         print()
 
@@ -865,7 +870,7 @@ def main():
             print("output file is not a fastq or sam file")
             parser.print_help(sys.stderr)
             sys.exit(1)
-            
+
         # check that the output dir exists
         if "/" in args.output:
             # get everyting but the name of the file

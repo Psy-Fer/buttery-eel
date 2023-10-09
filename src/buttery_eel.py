@@ -861,7 +861,7 @@ def main():
         print("Client Basecalling config:")
         print(client.get_basecalling_config())
         print("Server Basecalling config:")
-        print(client.get_server_information("127.0.0.1:{}".format(args.port), 10))
+        print(client.get_server_information("127.0.0.1:5000", 10))
         # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_protocol_version())
         # print(client.get_software_version())

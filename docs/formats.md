@@ -70,8 +70,9 @@ Things to think:
 
 # SAM tags
 
-| Type   | Name               | Description |
-| ------ | ------------------ | ----------- |
-| int (i) | qs                | the mean qscore of the read           |
-| int (i) | ns                | number of samples           |
-| int (i) | ts                | number of trimmed samples           |
+| Type       | Name          | Description |
+| ---------- | ------------- | ----------- |
+| int (i)    | qs            | the mean qscore of the read           |
+| int (i)    | ns            | number of samples           |
+| int (i)    | ts            | number of trimmed samples           |
+| string (Z) | pi            | the parent id/original id if the read was split  |

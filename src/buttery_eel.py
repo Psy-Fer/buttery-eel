@@ -363,7 +363,10 @@ def write_worker(args, q, files, SAM_OUT):
                 bc_writer = bc_files[barcode_name]
                 if SAM_OUT:
                     if args.call_mods:
-                        bc_writer.write("{}\tBC:Z:{}\n".format(read["sam_record"], barcode))
+                        if args.do_read_splitting:
+                            bc_writer.write("{}\tpi:Z:{}\tBC:Z:{}\n".format(read["sam_record"], read["parent_read_id"], barcode))
+                        else:
+                            bc_writer.write("{}\tBC:Z:{}\n".format(read["sam_record"], barcode))
                     elif args.moves_out:
                         m = read["move_table"].tolist()
                         move_str = ','.join(map(str, m))
@@ -413,7 +416,10 @@ def write_output(args, read, OUT, SAM_OUT):
     read_id = read["read_id"]
     if SAM_OUT:
         if args.call_mods:
-            OUT.write("{}\n".format(read["sam_record"]))
+            if args.do_read_splitting:
+                OUT.write("{}\tpi:Z:{}\n".format(read["sam_record"], read["parent_read_id"]))
+            else:
+                OUT.write("{}\n".format(read["sam_record"]))
         elif args.moves_out:
             m = read["move_table"].tolist()
             move_str = ','.join(map(str, m))

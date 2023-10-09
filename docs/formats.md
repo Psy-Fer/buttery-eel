@@ -77,4 +77,7 @@ Non-standard SAM tags are documented here, not the standard ones for barcode and
 | int (i) | qs                | 11 | the mean qscore of the read           |
 | int (i) | ns                | 3196 | number of samples           |
 | int (i) | ts                | 0 | number of trimmed samples           |
-| string (Z) | pi                | <sub>f750bda8-0417-429f-b2ec-54c700543ed6</sub>  | The original read_id if the read was split. If not split, will be the same as the read_id.           |
+| string (Z) | pi                | <sub>f750bda8-0417-429f-b2ec-54c700543ed6</sub>  | The original read_id if the read was split. If not split, will be the same as the read_id.      |
+| array (B) | mv                | <sub>mv:B:c:5,1,1,0,1,0,0,0,1,0,1...</sub>  | Move table. Only if --moves_out or --call_mods is specified. See [here](https://github.com/hasindu2008/squigualiser/blob/main/docs/move_table.md) for the explanation.  |.
+
+sm:f:104.84     sd:f:18.2686    sv:Z:quantile

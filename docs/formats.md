@@ -5,31 +5,31 @@ Close to ONT's sequencing summary, but documented, with a spec that tells how ch
 A tab-delimited text file with the first row being the header.
 
 Things to think:
-1. Strict order or arbitrary order?
-2. how are new additions and removal/changes to existing columns are handled?
+1. Columns have an arbitrary order. Use column header rather than column index when reading.
+2. New additions are most likely added to the end, unless it is some "important" value that makes more sense being next to some related value.
 
 
 | Col | Type   | Name                     | Example value | Description |
 | --- | ------ | ------------------------ | ----          | ----------- |
-| 1   | string | filename_fastq           | reads.fastq | name of the fastq file this read was written to    |
+| 1   | string | filename_out           | reads.fastq | name of the fastq/sam file this read was written to    |
 | 2   | string | filename_slow5           | reads.blow5 | name of the slow5 file this read was read from     |
 | 3   | string | parent_read_id           |             | the original read_id if the read was split.  If not split, will be the same as the read_id column below.             |
 | 4   | string | read_id                  | <sub>f750bda8-0417-429f-b2ec-54c700543ed6 </sub> | the unique read_id. This is a Universally unique identifier (UUID) version 4 and should be unique for any read from any device.   |
 | 5   | string | run_id                   | <sub>dc60b20f5078b3546ded810fb828b49c438fbd89322</sub> | The unique run ID which will be different for each run              |
 | 6   | int    | channel                  | 1 | The channel number.  See Table 5 of [slow5 specification](https://hasindu2008.github.io/slow5specs/slow5-v1.0.0.pdf) for details. |
 | 7   | int    | mux                      | 2 | The MUX setting for the channel when the read began. See Table 5 of [slow5 specification](https://hasindu2008.github.io/slow5specs/slow5-v1.0.0.pdf) for details                                    |
-| 8   | int    | minknow_events           | | an internal value                                  |
-| 9   | int    | start_time               | | start time of the read                             |
+| 8   | int    | minknow_events           | |  The number of events detected by MinKNOW. Defaults to zero if unknown, or if the value cannot be determined due to read-splitting                                  |
+| 9   | int    | start_time               | 3034.378 | Start time of the read, in seconds since the beginning of the run    |
 | 10  | int    | duration                 | | time it took from start time to sequence read      |
-| 11  | string | passes_filtering         | PASS | TRUE/FALSE for passing the minimum qscore          |
-| 12  | ?      | template_start           | | .                              |
-| 13  | int    | num_events_template      | | number of events present in read                   |
-| 14  | ?      | template_duration        | 16178 | .           |
-| 15  | int    | sequence_length_template | 11.885449 | number of bases in the read                        |
+| 11  | string | passes_filtering         | TRUE | TRUE/FALSE for passing the minimum qscore          |
+| 12  | ?      | template_start           | | Legacy value. Not used in buttery-eel |
+| 13  | int    | num_events_template      | | Legacy value. Number of events present in read                   |
+| 14  | ?      | template_duration        | 16178 | Duration of the portion of the read that was sent to the basecaller after adapter trimming          |
+| 15  | int    | sequence_length_template | 11.885449 | Number of bases in the output sequence, taking into account any sequence trimming.                        |
 | 16  | float  | mean_qscore_template     | 3.239253 | the mean qscore of the read                        |
-| 17  | float  | strand_score_template    | 106.933281 | .                                       |
-| 18  | float  | median_template          | 19.054329 | median of the template                             |
-| 19  | float  | mad_template             | PGXX22394 | median absolute difference for the template        |
+| 17  | float  | strand_score_template    | 106.933281 |  Legacy field - no longer populated reliably.    |
+| 18  | float  | median_template          | 19.054329 | The median current of the read, in pA    |
+| 19  | float  | mad_template             | 18.55447 | median absolute difference for the read       |
 | 21  | string | experiment_id            | PGXX22394 | experiment ID if there is one present              |
 | 22  | string | sample_id                | HG002 | the sample ID if there is one present              |
 | 23  | string | end_reason               | signal_positive| the reason why the read ended                      |
@@ -42,7 +42,7 @@ Things to think:
 | 1   | string | parent_read_id                | <sub>88be501f-f700-4d9a-8341-13661d579fac</sub> 	| The original read_id if the read was split. If not split, will be the same as the read_id column below.       |
 | 2   | string | read_id                       | <sub>88be501f-f700-4d9a-8341-13661d579fac</sub>   | The unique read_id. This is a Universally unique identifier (UUID) version 4 and should be unique for any read from any device.                               |
 | 3   | string | barcode_arrangement           | barcode02 								| The barcode name. Usually barcodexx or unclassifed                                |
-| 4   | string | barcode_full_arrangement      | NB02_var2							    | ?           										|
+| 4   | string | barcode_full_arrangement      | NB02_var2							    | he full name for the highest-scoring barcode match, including kit, variation, and direction	|
 | 5   | string | barcode_kit                   | NB									    | Barcode kit the barcode comes from. Likely to be NB or RB for native and rapid               |
 | 6   | string | barcode_variant               | var2								    | Which variant of the barcode was detected        |
 | 7   | float  | barcode_score                 | 62.16666794 							| the alignment score of the barcode               |

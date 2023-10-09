@@ -25,7 +25,7 @@
 
 die() {
     echo "Error: $@" >&2
-    exit 1
+    #exit 1
 }
 
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)

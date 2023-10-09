@@ -8,6 +8,7 @@ Things to think:
 1. Strict order or arbitrary order?
 2. how are new additions and removal/changes to existing columns are handled?
 
+
 | Col | Type   | Name                     | Example value | Description |
 | --- | ------ | ------------------------ | ----          | ----------- |
 | 1   | string | filename_fastq           | reads.fastq | name of the fastq file this read was written to    |

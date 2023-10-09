@@ -17,6 +17,13 @@ You can download guppy or dorado server here: https://community.nanoporetech.com
 - Currently, the main branch is the multi-process version (parallel processes to communicate to/from Guppy client) that enables performance scaling for multi-GPU setups, especially for FAST basecalling or shorter reads. A simple single-process version (one process to communicate to/from the Guppy client) that works well for HAC and SUP models is available in the `singleproc` branch for learning purposes. 
 - Before v0.3.3, the main branch was the single-process version (`singleproc` branch) and the multi=process version was under the `multiproc` branch.
 
+## Dorado basecalls not matching
+
+Currently if you basecall the same data with `dorado==0.3.4`, `dorado_basecall_server`/`ont_basecall_client==7.4.1`, and `ont-pyguppy-client-lib==7.4.1`, you will get 3 different answers.
+We are following up with ONT why this is the case. The output is very close, but not identical in the base calls.
+
+There is no such issue with the latest guppy build, `6.5.7`.
+
 
 # Quickstart
 

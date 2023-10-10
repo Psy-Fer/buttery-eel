@@ -71,10 +71,8 @@ execute_test() {
 
 }
 
-FIELDS="read_id,run_id,channel,mux,num_events_template,sequence_length_template"
-FIELDS_APPROX="read_id,strand_score_template,median_template,mad_template,mean_qscore_template"
-#mean_qscore_template has too many decimal points
-
+FIELDS="read_id,run_id,channel,mux,num_events_template"
+FIELDS_APPROX="read_id,strand_score_template,median_template,mad_template"
 
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
 test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"

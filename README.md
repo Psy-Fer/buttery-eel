@@ -8,29 +8,32 @@
 
 
 
-## The buttery eel - A slow5 guppy basecaller wrapper
+## The buttery eel - A slow5 guppy/dorado basecaller wrapper
 
-`buttery-eel` is a wrapper for `guppy`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`](https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/) to work.
+`buttery-eel` is a wrapper for `guppy` and `dorado`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`] or `dorado` server (https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/) to work.
 
-You can download guppy here: https://community.nanoporetech.com/downloads. An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
+You can download guppy or dorado server here: https://community.nanoporetech.com/downloads. An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
 
-The main branch is a simple single-process version (one process to communicate to/from the Guppy client) that works well for HAC and SUP models. If you want performance scaling for multi-GPU setups, especially for FAST basecalling or shorter reads, please use the multi-process version (parallel processes to communicate to/from Guppy client) under the `multiproc` branch.
+- Currently, the main branch is the multi-process version (parallel processes to communicate to/from Guppy client) that enables performance scaling for multi-GPU setups, especially for FAST basecalling or shorter reads. A simple single-process version (one process to communicate to/from the Guppy client) that works well for HAC and SUP models is available in the `singleproc` branch for learning purposes. 
+- Before v0.3.3, the main branch was the single-process version (`singleproc` branch) and the multi=process version was under the `multiproc` branch.
 
-# Quick start
+## Dorado basecalls not matching
+
+Currently if you basecall the same data with `dorado==0.3.4`, `dorado_basecall_server`/`ont_basecall_client==7.4.1`, and `ont-pyguppy-client-lib==7.4.1`, you will get 3 different answers.
+We are following up with ONT why this is the case. The output is very close, but not identical in the base calls.
+
+There is no such issue with the latest guppy build, `6.5.7`.
+
+
+# Quickstart
 
 Using python3, preferably python3.7 to 3.9. Python 3.10 and higher does not yet have any pip wheel builds available for v6.3.8 and lower of guppy
 
-Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.8`
-
+Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.8`. Alternatively, you can install a version of `dorado server` too.
 Download: https://community.nanoporetech.com/downloads
 
 The `guppy` and `ont-pyguppy-client-lib` versions need to match
-
-    # if GUPPY_VERSION=6.3.8
-    # modify requirements.txt to have:
-    #   ont-pyguppy-client-lib==6.3.8
-
-
+```
     git clone https://github.com/Psy-Fer/buttery-eel.git
     cd buttery-eel
     python3 -m venv venv3
@@ -43,49 +46,102 @@ The `guppy` and `ont-pyguppy-client-lib` versions need to match
     # set this first to ensure pyslow5 installs with zstd:
     # export PYSLOW5_ZSTD=1
 
+    # if GUPPY_VERSION=6.3.8
+    # modify requirements.txt to have:
+    #   ont-pyguppy-client-lib==6.3.8
+    # if using DORADO_SERVER_VERSION=7.1.4
+    #   ont-pyguppy-client-lib==7.1.4
+    
     python setup.py install
 
     buttery-eel --help
 
+```
 
-Usage:
+Suppose the name of the virtual environment you created is venv3 and resides directly in the root of the cloned buttery-eel git repository. In that case, you can use the wrapper script available under `/path/to/repository/scripts/eel` for conveniently executing buttery-eel. This script will automatically source the virtual environment, find a free port, execute the buttery-eel with the parameters you specified and finally deactivate the virtual environment. If you add the path of `/path/to/repository/scripts/` to your PATH environment variable, you can simply use buttery-eel as:
+```
+eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac_prom.cfg --device cuda:all -i reads.blow5 -o reads.reads # and any other parameters
+```
 
-    usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--guppy_batchsize GUPPY_BATCHSIZE] [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--slow5_batchsize SLOW5_BATCHSIZE]
-                    [--quiet] [--moves_out] [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING] [--log LOG] [--seq_sum] [-v]
+Alternatively, you can manually execute buttery-eel if you have sourced the virtual environment. You must provide `--port PORT --use_tcp` parameters manually in this case. Example:
+```
+buttery-eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac_prom.cfg --device cuda:all -i reads.blow5 -o reads.reads.fastq --port 5000 --use_tcp  # and any other parameters
+```
 
-    buttery-eel - wrapping guppy for SLOW5 basecalling
+# Usage
 
-    optional arguments:
-    -h, --help            show this help message and exit
-    -i INPUT, --input INPUT
-                            input blow5 file for basecalling (default: None)
-    -o OUTPUT, --output OUTPUT
-                            output .fastq or unaligned .sam file to write (default: None)
-    -g GUPPY_BIN, --guppy_bin GUPPY_BIN
-                            path to ont_guppy/bin folder (default: None)
-    --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
-    --guppy_batchsize GUPPY_BATCHSIZE
-                            number of reads to send to guppy at a time. (default: 4000)
-    --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
-    -q QSCORE, --qscore QSCORE
-                            A mean q-score to split fastq/sam files into pass/fail output (default: None)
-    --slow5_threads SLOW5_THREADS
-                            Number of threads to use reading slow5 file (default: 4)
-    --slow5_batchsize SLOW5_BATCHSIZE
-                            Number of reads to process at a time reading slow5 (default: 4000)
-    --quiet               Don't print progress (default: False)
-    --moves_out           output move table (sam format only) (default: False)
-    --do_read_splitting   Perform read splitting based on mid-strand adapter detection (default: False)
-    --min_score_read_splitting MIN_SCORE_READ_SPLITTING
-                            Minimum mid-strand adapter score for reads to be split (default: 50.0)
-    --log LOG             guppy log folder path (default: buttery_guppy_logs)
-    --seq_sum             [Experimental] - Write out sequencing_summary.tsv file (default: False)
-    -v, --version         Prints version
+```
+usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--guppy_batchsize GUPPY_BATCHSIZE] [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS]
+                   [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE] [--quiet] [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out]
+                   [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING] [--detect_adapter] [--min_score_adapter MIN_SCORE_ADAPTER]
+                   [--trim_adapters] [--detect_mid_strand_adapter] [--seq_sum] [--barcode_kits BARCODE_KITS] [--enable_trim_barcodes] [--require_barcodes_both_ends]
+                   [--detect_mid_strand_barcodes] [--min_score_barcode_front MIN_SCORE_BARCODE_FRONT] [--min_score_barcode_rear MIN_SCORE_BARCODE_REAR]
+                   [--min_score_barcode_mid MIN_SCORE_BARCODE_MID] [--profile] [-v]
 
+buttery-eel - wrapping guppy/dorado for SLOW5 basecalling
 
+optional arguments:
+  -h, --help            show this help message and exit
+  --profile             run cProfile on all processes - for debugging benchmarking (default: False)
+  -v, --version         Prints version
 
+Run Options:
+  -i INPUT, --input INPUT
+                        input blow5 file or directory for basecalling (default: None)
+  -o OUTPUT, --output OUTPUT
+                        output .fastq or unaligned .sam file to write (default: None)
+  -g GUPPY_BIN, --guppy_bin GUPPY_BIN
+                        path to ont_guppy/bin or ont-dorado-server/bin folder (default: None)
+  --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
+  --guppy_batchsize GUPPY_BATCHSIZE
+                        number of reads to send to guppy/dorado at a time. (default: 4000)
+  --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
+  -q QSCORE, --qscore QSCORE
+                        A mean q-score to split fastq/sam files into pass/fail output (default: None)
+  --slow5_threads SLOW5_THREADS
+                        Number of threads to use reading slow5 file (default: 4)
+  --procs PROCS         Number of worker processes to use processing reads (default: 4)
+  --slow5_batchsize SLOW5_BATCHSIZE
+                        Number of reads to process at a time reading slow5 (default: 4000)
+  --quiet               Don't print progress (default: False)
+  --max_read_queue_size MAX_READ_QUEUE_SIZE
+                        Number of reads to process at a time reading slow5 (default: 20000)
+  --log LOG             guppy/dorado log folder path (default: buttery_basecaller_logs)
+  --moves_out           output move table (sam format only) (default: False)
 
+Sequencing summary Options:
+  --seq_sum             Write out sequencing_summary.txt file (default: False)
 
+Read splitting Options:
+  --do_read_splitting   Perform read splitting based on mid-strand adapter detection (default: False)
+  --min_score_read_splitting MIN_SCORE_READ_SPLITTING
+                        Minimum mid-strand adapter score for reads to be split (default: 50.0)
+
+Adapter trimming Options:
+  --detect_adapter      Enable detection of adapters at the front and rear of the sequence (default: False)
+  --min_score_adapter MIN_SCORE_ADAPTER
+                        Minimum score for a front or rear adapter to be classified. Default is 60. (default: 60.0)
+  --trim_adapters       Flag indicating that adapters should be trimmed. Default is False. (default: False)
+  --detect_mid_strand_adapter
+                        Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False. (default:
+                        False)
+
+Barcode demultiplexing Options:
+  --barcode_kits BARCODE_KITS
+                        Strings naming each barcode kit to use. Default is to not do barcoding. (default: None)
+  --enable_trim_barcodes
+                        Flag indicating that barcodes should be trimmed. (default: False)
+  --require_barcodes_both_ends
+                        Flag indicating that barcodes must be at both ends. (default: False)
+  --detect_mid_strand_barcodes
+                        Flag indicating that read will be marked as unclassified if barcodes appear within the strand itself. (default: False)
+  --min_score_barcode_front MIN_SCORE_BARCODE_FRONT
+                        Minimum score for a front barcode to be classified (default: 60.0)
+  --min_score_barcode_rear MIN_SCORE_BARCODE_REAR
+                        Minimum score for a rear barcode to be classified (default: 60.0)
+  --min_score_barcode_mid MIN_SCORE_BARCODE_MID
+                        Minimum score for mid barcodes to be detected (default: 60.0)
+```
 
 Set up flags needed and run (`--use_tcp` is needed but not forced in these early versions):
 
@@ -97,15 +153,14 @@ You must use guppy 6.3.0 or higher for mod calling
 
     buttery-eel -g ont-guppy-6.3.8/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.mod.sam
 
-
 the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`
+
 
 ## Aligning uSAM output and getting sorted bam using -y in minimap2
 
     samtools fastq -TMM,ML test.mod.sam | minimap2 -ax map-ont -y ref.fa - | samtools view -Sb - | samtools sort - > test.aln.mod.bam
 
-
-If you also wish to keep the quality scores in the unofficial qs tags or if mapping a regular unmapped sam the -T argument can be used in conjuntion with minimap2 -y for example: `-TMM,ML,qs` or `-Tqs`
+If you also wish to keep the quality scores in the unofficial qs tags or if mapping a regular unmapped sam the -T argument can be used in conjunction with minimap2 -y for example: `-TMM,ML,qs` or `-Tqs`
 
 
 # Shutting down server

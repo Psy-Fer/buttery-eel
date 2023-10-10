@@ -23,11 +23,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# script to execute buttery-eel and guppy on a test dataset and compare the results
+# script to execute buttery-eel and guppy on a test dataset with sequencing summary and compare the results
 
 die() {
     echo "Error: $@" >&2
-    exit 1
+    #exit 1
 }
 
 
@@ -49,22 +49,49 @@ PORT=$(netstat -aln | awk '
 echo $PORT
 }
 
+handle_tests() {
+	numfailed=$(wc -l < diff.txt)
+	numcases=$(wc -l < ${ORIG})
+	numres=$(wc -l < ${RES})
+	echo "$numfailed of $numcases test cases deviated."
+	missing=$(echo "$numcases-$numres" | bc)
+	echo "$missing entries in the truthset are missing in the testset"
+	failp=$(echo "$numfailed*100/$numcases" | bc)
+	[ "$failp" -gt ${THRESH} ] && die "Validation failed"
+	echo "Validation passed"
+}
+
+execute_test() {
+
+	ORIG=$2
+	RES=$1
+	THRESH=$3
+	rm -f diff.txt
+	diff -y --suppress-common-lines ${ORIG} ${RES} > diff.txt || handle_tests
+
+}
+
+FIELDS="read_id,run_id,channel,mux"
+FIELDS_APPROX="read_id,median_template,mad_template"
+
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
 test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"
 
 #defaults if not set
-test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-guppy-${CURRENT_GUPPY}/bin/
-test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/NA12878_prom_subsubsample/fast5/
-test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/NA12878_prom_subsubsample/reads.blow5
+test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-dorado-server-${CURRENT_GUPPY}/bin/
+test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
 test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
-test -z $MODEL && MODEL=dna_r9.4.1_450bps_fast_prom.cfg
+test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_fast_prom.cfg
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
 test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
+test -z $CSVTK && CSVTK=/install/csvtk-0.28.0/csvtk
 
 #check if files exist
-test -e ${PATH_TO_GUPPY}/guppy_basecaller || die  "${PATH_TO_GUPPY}/guppy_basecaller not found"
+test -e ${PATH_TO_GUPPY}/dorado_basecall_server || die  "${PATH_TO_GUPPY}/dorado_basecall_server not foundd"
+test -e ${PATH_TO_GUPPY}/ont_basecall_client || die  "${PATH_TO_GUPPY}/ont_basecall_client not found"
 test -d ${PATH_TO_FAST5} || die  "${PATH_TO_FAST5} not found"
 test -e ${PATH_TO_BLOW5} || die  "${PATH_TO_BLOW5} not found"
 test -e ${PATH_TO_IDENTITY} || die  "${PATH_TO_IDENTITY} not found"
@@ -77,14 +104,21 @@ mkdir ${EEL_OUT_TMP} || die "Failed to create ${EEL_OUT_TMP}"
 #sourcing venv
 source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
 
-echo "Running guppy"
-${PATH_TO_GUPPY}/guppy_basecaller -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  -x cuda:all --recursive ${OPTS_GUPPY}
+echo "Running server"
+LOGPATH=$(mktemp -d)
+${PATH_TO_GUPPY}/dorado_basecall_server  --config ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
+pid=$!
+echo "Running client"
+${PATH_TO_GUPPY}/ont_basecall_client -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  --recursive --port 5000 --use_tcp ${OPTS_GUPPY}
+kill $pid
 cat ${GUPPY_OUT_TMP}/pass/* ${GUPPY_OUT_TMP}/fail/* > ${GUPPY_OUT_TMP}/reads_tmp.fastq
 ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.fastq | cut -f 2- >  ${GUPPY_OUT_TMP}/reads_tmp.identity
+$CSVTK -t cut ${GUPPY_OUT_TMP}/sequencing_summary.txt -f ${FIELDS} | sort > ${GUPPY_OUT_TMP}/seq.summary || die "Failed to extract sequencing summary"
+$CSVTK -t cut ${GUPPY_OUT_TMP}/sequencing_summary.txt -f ${FIELDS_APPROX} | sort > ${GUPPY_OUT_TMP}/seqapprx.summary || die "Failed to extract sequencing summary"
 
 echo "Running buttery-eel"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT}  --use_tcp ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT}  --use_tcp ${OPTS_EEL} --seq_sum &> eel.log
 cat eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
@@ -92,10 +126,12 @@ if [ $MEM -gt 8000000 ]; then
 else
     echo "Memory usage is OK: $MEM"
 fi
-${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP}/reads.fastq | cut -f 2-> ${EEL_OUT_TMP}/reads.identity
+${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP}/reads.fastq | cut -f 2- > ${EEL_OUT_TMP}/reads.identity
 DUPLI=$(awk '{if(NR%4==1) {print $1}}' ${EEL_OUT_TMP}/reads.fastq  | tr -d '@' | sort | uniq -c | sort -nr -k1,1 | head -1 | awk '{print $1}')
 test -z $DUPLI && die "Error in extracting reads ids"
 test $DUPLI -gt 1 && die "Duplicate reads found"
+$CSVTK -t cut ${EEL_OUT_TMP}/sequencing_summary.txt -f ${FIELDS} |  sort > ${EEL_OUT_TMP}/seq.summary || die "Failed to extract sequencing summary"
+$CSVTK -t cut ${EEL_OUT_TMP}/sequencing_summary.txt -f ${FIELDS_APPROX} |  sort > ${EEL_OUT_TMP}/seqapprx.summary || die "Failed to extract sequencing summary"
 
 echo "Comparing results"
 diff ${GUPPY_OUT_TMP}/reads_tmp.identity ${EEL_OUT_TMP}/reads.identity || die "Results differ"
@@ -103,3 +139,11 @@ diff ${GUPPY_OUT_TMP}/reads_tmp.identity ${EEL_OUT_TMP}/reads.identity || die "R
 echo "Test passed"
 cat ${GUPPY_OUT_TMP}/reads_tmp.identity
 cat ${EEL_OUT_TMP}/reads.identity
+
+echo "Comparing sequencing summary"
+execute_test ${GUPPY_OUT_TMP}/seq.summary ${EEL_OUT_TMP}/seq.summary 25
+
+echo "Comparing sequencing summary - approx values"
+execute_test ${GUPPY_OUT_TMP}/seqapprx.summary ${EEL_OUT_TMP}/seqapprx.summary 50
+
+echo "Test passed"

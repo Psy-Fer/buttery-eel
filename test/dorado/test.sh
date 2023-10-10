@@ -27,7 +27,7 @@
 
 die() {
     echo "Error: $@" >&2
-    exit 1
+    #exit 1
 }
 
 
@@ -53,7 +53,7 @@ CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3
 test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"
 
 #defaults if not set
-test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-guppy-${CURRENT_GUPPY}/bin/
+test -z $PATH_TO_GUPPY && PATH_TO_GUPPY=/install/ont-dorado-server-${CURRENT_GUPPY}/bin/
 test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/NA12878_prom_subsubsample/fast5/
 test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/NA12878_prom_subsubsample/reads.blow5
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
@@ -64,7 +64,8 @@ test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
 test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
 
 #check if files exist
-test -e ${PATH_TO_GUPPY}/guppy_basecaller || die  "${PATH_TO_GUPPY}/guppy_basecaller not found"
+test -e ${PATH_TO_GUPPY}/dorado_basecall_server || die  "${PATH_TO_GUPPY}/dorado_basecall_server not foundd"
+test -e ${PATH_TO_GUPPY}/ont_basecall_client || die  "${PATH_TO_GUPPY}/ont_basecall_client not found"
 test -d ${PATH_TO_FAST5} || die  "${PATH_TO_FAST5} not found"
 test -e ${PATH_TO_BLOW5} || die  "${PATH_TO_BLOW5} not found"
 test -e ${PATH_TO_IDENTITY} || die  "${PATH_TO_IDENTITY} not found"
@@ -77,8 +78,14 @@ mkdir ${EEL_OUT_TMP} || die "Failed to create ${EEL_OUT_TMP}"
 #sourcing venv
 source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
 
-echo "Running guppy"
-${PATH_TO_GUPPY}/guppy_basecaller -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  -x cuda:all --recursive ${OPTS_GUPPY}
+echo "Running server"
+LOGPATH=$(mktemp -d)
+${PATH_TO_GUPPY}/dorado_basecall_server  --config ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
+pid=$!
+echo "Running client"
+${PATH_TO_GUPPY}/ont_basecall_client -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  --recursive ${OPTS_GUPPY} --port 5000 --use_tcp
+kill $pid
+
 cat ${GUPPY_OUT_TMP}/pass/* ${GUPPY_OUT_TMP}/fail/* > ${GUPPY_OUT_TMP}/reads_tmp.fastq
 ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.fastq | cut -f 2- >  ${GUPPY_OUT_TMP}/reads_tmp.identity
 

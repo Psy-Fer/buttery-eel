@@ -82,7 +82,7 @@ export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --trim_strategy dna --min_score_adapter 60"
 export OPTS_EEL=$OPTS_GUPPY
-test/test.sh &> r10_adaptertrim.log  || echo "test failed. See r10_adaptertrim.log for details"
+test/test.sh &> r10_adaptertrim.log  || die "test failed. See r10_adaptertrim.log for details"
 unset OPTS_GUPPY
 unset OPTS_EEL
 echo ""
@@ -93,7 +93,7 @@ export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 export OPTS_GUPPY="--do_read_splitting --min_score_read_splitting 50"
 export OPTS_EEL=$OPTS_GUPPY
-test/test.sh &> r10_readsplit.log  || echo "test failed. See r10_readsplit.log for details"
+test/test.sh &> r10_readsplit.log  || die "test failed. See r10_readsplit.log for details"
 unset OPTS_GUPPY
 unset OPTS_EEL
 echo ""
@@ -104,7 +104,7 @@ export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 export OPTS_GUPPY="--detect_mid_strand_adapter --trim_adapters --detect_adapter --trim_strategy dna --min_score_adapter 60 --do_read_splitting --min_score_read_splitting 50"
 export OPTS_EEL=$OPTS_GUPPY
-test/test.sh &> r10_readsplittrim.log  || echo "test failed. See r10_readsplittrim.log for details"
+test/test.sh &> r10_readsplittrim.log  || die "test failed. See r10_readsplittrim.log for details"
 unset OPTS_GUPPY
 unset OPTS_EEL
 echo ""

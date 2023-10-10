@@ -34,27 +34,27 @@ Download: https://community.nanoporetech.com/downloads
 
 The `guppy` and `ont-pyguppy-client-lib` versions need to match
 ```
-    git clone https://github.com/Psy-Fer/buttery-eel.git
-    cd buttery-eel
-    python3 -m venv venv3
-    source ./venv3/bin/activate
-    pip install --upgrade pip
-    pip install --upgrade setuptools wheel
+git clone https://github.com/Psy-Fer/buttery-eel.git
+cd buttery-eel
+python3 -m venv venv3
+source ./venv3/bin/activate
+pip install --upgrade pip
+pip install --upgrade setuptools wheel
 
-    # if your slow5 file uses zstd compression and you have zstd installed
-    # see slow5lib for more info
-    # set this first to ensure pyslow5 installs with zstd:
-    # export PYSLOW5_ZSTD=1
+# if your slow5 file uses zstd compression and you have zstd installed
+# see slow5lib for more info
+# set this first to ensure pyslow5 installs with zstd:
+# export PYSLOW5_ZSTD=1
 
-    # if GUPPY_VERSION=6.3.8
-    # modify requirements.txt to have:
-    #   ont-pyguppy-client-lib==6.3.8
-    # if using DORADO_SERVER_VERSION=7.1.4
-    #   ont-pyguppy-client-lib==7.1.4
-    
-    python setup.py install
+# if GUPPY_VERSION=6.3.8
+# modify requirements.txt to have:
+#   ont-pyguppy-client-lib==6.3.8
+# if using DORADO_SERVER_VERSION=7.1.4
+#   ont-pyguppy-client-lib==7.1.4
 
-    buttery-eel --help
+python setup.py install
+
+buttery-eel --help
 
 ```
 
@@ -171,19 +171,21 @@ However, sometimes things go wrong, and the wrapper will temrinate before it ter
 
 I have mostly fixed this but sometimes it still happens. Here is how you check for the server and then kill it.
 
-    # check for guppy instanaces
-    ps -ef | grep guppy
+```
+# check for guppy instanaces
+ps -ef | grep guppy
 
-    # That might give you a result like this
+# That might give you a result like this
 
-    # hasindu  27946 27905 99 19:31 pts/22   01:25:29 /install/ont-guppy-6.3.8/bin/guppy_basecall_server --log_path buttery_guppy_logs --config dna_r9.4.1_450bps_hac_prom.cfg --port 5558 --use_tcp -x cuda:all --max_queued_reads 2000 --chunk_size 2000
+# hasindu  27946 27905 99 19:31 pts/22   01:25:29 /install/ont-guppy-6.3.8/bin/guppy_basecall_server --log_path buttery_guppy_logs --config dna_r9.4.1_450bps_hac_prom.cfg --port 5558 --use_tcp -x cuda:all --max_queued_reads 2000 --chunk_size 2000
 
-    # using the --port to see that it is indeed the one you started.
-    # you can then kill the process with, where in this case, `PID=27946`
+# using the --port to see that it is indeed the one you started.
+# you can then kill the process with, where in this case, `PID=27946`
 
-    kill <PID>
+kill <PID>
 
-    # then you can try again
+# then you can try again
+```
 
 
 # Info

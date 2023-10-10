@@ -28,6 +28,11 @@ die(){
     exit 1
 }
 
+GUPPY_VERSION=6.5.7
+CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
+test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"
+sed -i "s/${CURRENT_GUPPY}/${GUPPY_VERSION}/" requirements.txt || die "sed failed"
+
 test -z $EEL_PYTHON3 && EEL_PYTHON3=python3
 rm -rf venv3
 ${EEL_PYTHON3} -m venv venv3 || die "venv failed"

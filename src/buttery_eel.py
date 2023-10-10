@@ -575,7 +575,8 @@ def submit_read(args, iq, rq, address, config, params, N):
                                  # create summary data
                                 if args.seq_sum:
                                     minknow_events = call['metadata']['num_minknow_events']
-                                    duration = call['metadata']['duration']
+                                    sample_rate = float(read_store[read_id]["sampling_rate"])
+                                    duration = float(call['metadata']['duration'] / sample_rate, 6)
                                     num_events = call['metadata']['num_events']
                                     median = round(call['metadata']['median'], 6)
                                     med_abs_dev = round(call['metadata']['med_abs_dev'], 6)
@@ -587,7 +588,6 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     sequence_length = call['metadata']['sequence_length']
                                     channel = read_store[read_id]["aux_data"]['channel_number']
                                     mux = read_store[read_id]["aux_data"]['start_mux']
-                                    sample_rate = float(read_store[read_id]["sampling_rate"])
                                     start_time = round(float(read_store[read_id]["aux_data"]['start_time']) / sample_rate, 6)
                                     end_reason_val = read_store[read_id]["aux_data"]['end_reason']
                                     end_reason = read_store[read_id]["aux_data"]['end_reason_labels'][end_reason_val]

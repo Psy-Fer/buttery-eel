@@ -576,7 +576,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                 if args.seq_sum:
                                     minknow_events = call['metadata']['num_minknow_events']
                                     sample_rate = float(read_store[read_id]["sampling_rate"])
-                                    duration = float(call['metadata']['duration'] / sample_rate, 6)
+                                    duration = round(float(call['metadata']['duration'] / sample_rate), 6)
                                     num_events = call['metadata']['num_events']
                                     median = round(call['metadata']['median'], 6)
                                     med_abs_dev = round(call['metadata']['med_abs_dev'], 6)

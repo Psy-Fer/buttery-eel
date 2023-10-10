@@ -7,7 +7,7 @@ rm -rf logs_guppy logs_dorado
 test/guppy/test_extensive.sh
 mkdir logs_guppy logs_dorado
 mv *.log logs_guppy
-test/dorado/test_install.sh
+test/dorado/test_extensive.sh
 mv *.log logs_dorado
 
 

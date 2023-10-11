@@ -54,6 +54,9 @@ pip install --upgrade setuptools wheel
 
 python setup.py install
 
+# Alternatively, the new way of building things is to do the following command
+# pip install .
+
 buttery-eel --help
 
 ```

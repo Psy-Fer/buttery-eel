@@ -160,7 +160,7 @@ the `--config` file can be found using this command with guppy `guppy_basecaller
 
     samtools fastq -TMM,ML test.mod.sam | minimap2 -ax map-ont -y ref.fa - | samtools view -Sb - | samtools sort - > test.aln.mod.bam
 
-If you also wish to keep the quality scores in the unofficial qs tags or if mapping a regular unmapped sam the -T argument can be used in conjunction with minimap2 -y for example: `-TMM,ML,qs` or `-Tqs`
+If you also wish to keep the quality scores in the unofficial qs tags or if mapping a regular unmapped sam the -T argument can be used in conjunction with minimap2 -y for example: `-TMM,ML,qs` or `-Tqs`. You can also get all sam tags with `-T'*'` but you need samtools of v1.16 or higher.
 
 
 # Shutting down server

@@ -25,7 +25,7 @@ setuptools.setup(
     url="https://github.com/Psy-Fer/buttery-eel",
     author="James Ferguson",
     author_email="j.ferguson@garvan.org.au",
-    description="Slow5 guppy basecall wrapper",
+    description="Slow5 guppy/dorado basecall wrapper",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),

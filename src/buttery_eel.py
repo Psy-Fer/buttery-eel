@@ -53,7 +53,8 @@ def start_guppy_server_and_client(args, server_args):
                         # "--max_queued_reads", args.max_queued_reads,
                         # "--chunk_size", args.chunk_size,
                         ])
-    params = {"priority": PyGuppyClient.high_priority}
+    # params = {"priority": PyGuppyClient.high_priority}
+    params = {}
 
     if args.moves_out:
         params["move_and_trace_enabled"] = True
@@ -520,7 +521,13 @@ def submit_read(args, iq, rq, address, config, params, N):
                         if len(calls) > 1:
                             split_reads = True
                         for call in calls:
-                            # print(call)
+                            # for i in call:
+                            #     if isinstance(call[i], dict):
+                            #         for j in call[i]:
+                            #             print("{}: {}".format(j, call[i][j]))
+                            #     else:
+                            #         print("{}: {}".format(i, call[i]))
+                            # sys.exit()
                             try:
                                 bcalled_read = {}
                                 bcalled_read["sam_record"] = ""

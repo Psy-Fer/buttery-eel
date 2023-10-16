@@ -23,7 +23,7 @@ The columns are described below. Some of the descriptions are derived from the [
 | 7   | int    | mux                      | 2 | The MUX setting for the channel when the read began. See Table 5 of [slow5 specification](https://hasindu2008.github.io/slow5specs/slow5-v1.0.0.pdf) for details    |
 | 8   | int    | minknow_events           | 0 |  The number of events detected by MinKNOW. Zero if unknown, or if the value cannot be determined due to read-splitting  |
 | 9   | int    | start_time               | 3034.378 | Start time of the read, in seconds since the beginning of the run. This is typically equal to the start_time in S/BLOW5 (which is in terms of number of samples), divided by the sampling_rate in S/BLOW5.   |
-| 10  | int    | duration                 | 39878 | Time it took from start time to sequence read in seconds      |
+| 10  | int    | duration                 | 9.9695 | Time it took from start time to sequence read in seconds      |
 | 11  | string | passes_filtering         | TRUE | TRUE/FALSE for passing the minimum qscore          |
 | 12  | ?      | template_start           |   .   | Legacy value. |
 | 13  | int    | num_events_template      |   .   | Legacy value. Number of events present in read.  |

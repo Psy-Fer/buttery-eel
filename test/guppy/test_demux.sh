@@ -49,7 +49,7 @@ PORT=$(netstat -aln | awk '
 echo $PORT
 }
 
-LIST="barcode02 barcode25 barcode95 unclassified"
+LIST="barcode02 barcode95 unclassified"
 
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
 test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"

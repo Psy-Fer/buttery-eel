@@ -53,6 +53,9 @@ def start_guppy_server_and_client(args, server_args):
                         # "--max_queued_reads", args.max_queued_reads,
                         # "--chunk_size", args.chunk_size,
                         ])
+    # the high priority queue uses a different batch size which alters the basecalls when called with dorado
+    # leaving this on default should set it to medium and give 'correct' results
+    # funny enough, it will call R9.4.1 data at higher accuracy, and the opposite impact on R10.4.1
     # params = {"priority": PyGuppyClient.high_priority}
     params = {}
 

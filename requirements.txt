@@ -1,3 +1,3 @@
 numpy
 pyslow5>=1.1.0
-ont-pyguppy-client-lib==6.5.7
+ont-pyguppy-client-lib==7.1.4

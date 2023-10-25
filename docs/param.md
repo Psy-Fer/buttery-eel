@@ -8,6 +8,7 @@ The qscore cutoff (that determine pass/fail) in Guppy keeps on changing and ther
 | Guppy version | Model                         | default qscore cut off |
 |--------       |------                         | ---                    | 
 | 6.5.7         | dna_r10.4.1_e8.2_400bps_5khz_hac_prom   |      9                   |
+| 6.5.7         | dna_r10.4.1_e8.2_400bps_5khz_sup   |      10                   |
 |               |                               |                      | 
 | 6.4.2         | dna_r9.4.1_450bps_fast_prom   |    8                   |
 | 6.4.2         | dna_r9.4.1_450bps_hac_prom    |    9                   |

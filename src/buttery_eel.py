@@ -551,9 +551,11 @@ def submit_read(args, iq, rq, address, config, params, N):
                                 if args.call_mods:
                                     try:
                                         bcalled_read["sam_record"] = call['metadata']['alignment_sam_record']
-                                    except:
-                                        # TODO: add warning that mods model not being used, and exit
+                                    except Exception as error:
+                                        # handle the exception
+                                        print("An exception occurred getting sam_record/alignment_sam_record for {}:", read_id, type(error).__name__, "-", error)
                                         bcalled_read["sam_record"] = ""
+                                        continue
                                 if args.do_read_splitting:
                                     bcalled_read["num_samples"] = None
                                     bcalled_read["trimmed_samples"] = None

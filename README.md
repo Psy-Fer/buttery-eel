@@ -221,3 +221,7 @@ The best thing about this, is all of the libraries and code is open, and so we c
 - [ONT guppy]()
 - [ONT ont-pyguppy-client-lib](https://pypi.org/project/ont-pyguppy-client-lib/6.2.1/)
 - basecaller code and flow mostly follows the methods used in [readfish](https://github.com/LooseLab/readfish/blob/23dd37117bce576b99caf097e7711dc87d30fa0a/ru/basecall.py) by Matt Loose and Alexander Payne
+
+
+# Citation
+ Hiruna Samarakoon, James M Ferguson, Hasindu Gamaarachchi, Ira W Deveson, Accelerated nanopore basecalling with SLOW5 data format, Bioinformatics, Volume 39, Issue 6, June 2023, btad352, https://doi.org/10.1093/bioinformatics/btad352",

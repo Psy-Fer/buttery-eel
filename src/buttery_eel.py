@@ -518,8 +518,11 @@ def submit_read(args, iq, rq, address, config, params, N):
                     time.sleep(client.throttle)
                     continue
                 else:
+                    model_id = ".".join(args.config.split(".")[:-1])
                     for calls in bcalled:
                         done += 1
+                        if not isinstance(calls, list):
+                            calls = [calls]
                         split_reads = False
                         if len(calls) > 1:
                             split_reads = True
@@ -530,7 +533,6 @@ def submit_read(args, iq, rq, address, config, params, N):
                             #             print("{}: {}".format(j, call[i][j]))
                             #     else:
                             #         print("{}: {}".format(i, call[i]))
-                            # sys.exit()
                             try:
                                 bcalled_read = {}
                                 bcalled_read["sam_record"] = ""
@@ -542,8 +544,16 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     bcalled_read["read_id"] = read_id
                                 bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
                                 bcalled_read["int_read_qscore"] = int(call['metadata']['mean_qscore'])
-                                bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata']['model_version_id'], bcalled_read["int_read_qscore"])
+                                bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata'].get('model_version_id', model_id), bcalled_read["int_read_qscore"])
                                 bcalled_read["sequence"] = call['datasets']['sequence']
+                            except Exception as error:
+                                # handle the exception
+                                print("An exception occurred in stage 1:", type(error).__name__, "-", error)
+                                sys.exit(1)
+                            try:
+                                if len(bcalled_read["sequence"]) == 0:
+                                    print("read_id: {} has a sequence length of zero, skipping".format(read_id))
+                                    continue
                                 bcalled_read["qscore"] = call['datasets']['qstring']
                                 if args.moves_out:
                                     bcalled_read["move_table"] = call['datasets']['movement']
@@ -551,9 +561,11 @@ def submit_read(args, iq, rq, address, config, params, N):
                                 if args.call_mods:
                                     try:
                                         bcalled_read["sam_record"] = call['metadata']['alignment_sam_record']
-                                    except:
-                                        # TODO: add warning that mods model not being used, and exit
+                                    except Exception as error:
+                                        # handle the exception
+                                        print("An exception occurred getting sam_record/alignment_sam_record for {}:", read_id, type(error).__name__, "-", error)
                                         bcalled_read["sam_record"] = ""
+                                        continue
                                 if args.do_read_splitting:
                                     bcalled_read["num_samples"] = None
                                     bcalled_read["trimmed_samples"] = None
@@ -564,6 +576,11 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     bcalled_read["num_samples"] = trimmed_duration + bcalled_read["trimmed_samples"]
                                     if bcalled_read["num_samples"] != raw_num_samples:
                                         print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(bcalled_read["read_id"], bcalled_read["num_samples"], raw_num_samples))
+                            except Exception as error:
+                                # handle the exception
+                                print("An exception occurred in stage 2:", type(error).__name__, "-", error)
+                                sys.exit(1)
+                            try:
                                 if SPLIT_PASS:
                                     if bcalled_read["read_qscore"] >= qs_cutoff:
                                         # pass
@@ -584,7 +601,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                 
                                  # create summary data
                                 if args.seq_sum:
-                                    minknow_events = call['metadata']['num_minknow_events']
+                                    minknow_events = call['metadata'].get('num_minknow_events', ".")
                                     sample_rate = float(read_store[read_id]["sampling_rate"])
                                     duration = round(float(call['metadata']['duration'] / sample_rate), 6)
                                     num_events = call['metadata']['num_events']
@@ -621,7 +638,7 @@ def submit_read(args, iq, rq, address, config, params, N):
                                 bcalled_list.append(bcalled_read)
                             except Exception as error:
                                 # handle the exception
-                                print("An exception occurred:", type(error).__name__, "-", error)
+                                print("An exception occurred in stage 3:", type(error).__name__, "-", error)
                                 sys.exit(1)
 
                     

@@ -27,11 +27,6 @@ div = 50
 skipped = 0
 
 
-total_reads = 0
-div = 50
-skipped = 0
-
-
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
         sys.stderr.write('error: %s\n' % message)

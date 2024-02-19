@@ -453,7 +453,7 @@ def write_output(args, read, OUT, SAM_OUT):
 
 
 
-def submit_read(args, iq, rq, address, config, params, N):
+def submit_read(args, iq, rq, sk, address, config, params, N):
     """
     submit a read to the basecall server
     """
@@ -468,6 +468,7 @@ def submit_read(args, iq, rq, address, config, params, N):
         qs_cutoff = float(args.qscore)
     done = 0
     bcalled_list = []
+    skipped_list = []
 
     client_sub = PyGuppyClient(address=address, config=config)
     client_sub.set_params(params)
@@ -537,14 +538,16 @@ def submit_read(args, iq, rq, address, config, params, N):
                                     bcalled_read["read_id"] = call['metadata']['strand_id']
                                 else:
                                     bcalled_read["read_id"] = read_id
+                                bcalled_read["sequence"] = call['datasets']['sequence']
                                 bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
                                 bcalled_read["int_read_qscore"] = int(call['metadata']['mean_qscore'])
                                 bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata'].get('model_version_id', model_id), bcalled_read["int_read_qscore"])
-                                bcalled_read["sequence"] = call['datasets']['sequence']
                             except Exception as error:
                                 # handle the exception
-                                print("An exception occurred in stage 1:", type(error).__name__, "-", error)
-                                sys.exit(1)
+                                # print("An exception occurred in stage 1:", type(error).__name__, "-", error)
+                                # print("Basecalling didn't complete for read: {}".format(read_id))
+                                skipped_list.append((read_id, "stage-1", "{}-{}".format(type(error).__name__,error)))
+                                continue
                             try:
                                 if len(bcalled_read["sequence"]) == 0:
                                     print("read_id: {} has a sequence length of zero, skipping".format(read_id))
@@ -573,8 +576,10 @@ def submit_read(args, iq, rq, address, config, params, N):
                                         print("WARNING: {} ns:i:{} != raw_num_samples:{}".format(bcalled_read["read_id"], bcalled_read["num_samples"], raw_num_samples))
                             except Exception as error:
                                 # handle the exception
-                                print("An exception occurred in stage 2:", type(error).__name__, "-", error)
-                                sys.exit(1)
+                                # print("An exception occurred in stage 2:", type(error).__name__, "-", error)
+                                # print("Basecalling didn't complete for read: {}".format(read_id))
+                                skipped_list.append((read_id, "stage-2", "{}-{}".format(type(error).__name__,error)))
+                                continue
                             try:
                                 if SPLIT_PASS:
                                     if bcalled_read["read_qscore"] >= qs_cutoff:
@@ -633,17 +638,21 @@ def submit_read(args, iq, rq, address, config, params, N):
                                 bcalled_list.append(bcalled_read)
                             except Exception as error:
                                 # handle the exception
-                                print("An exception occurred in stage 3:", type(error).__name__, "-", error)
-                                sys.exit(1)
+                                # print("An exception occurred in stage 3:", type(error).__name__, "-", error)
+                                # print("Basecalling didn't complete for read: {}".format(read_id))
+                                skipped_list.append((read_id, "stage-3", "{}-{}".format(type(error).__name__,error)))
+                                continue
 
                     
             read_counter = 0
             done = 0
-
+            if len(skipped_list) > 0:
+                sk.put(skipped_list)
             # TODO: make a skipped queue to handle skipped reads
             rq.put(bcalled_list)
             iq.task_done()
             bcalled_list = []
+            skipped_list = []
     
     if args.profile:
         pr.disable()
@@ -963,6 +972,7 @@ def main():
         mp.set_start_method('spawn')
         input_queue = mp.JoinableQueue()
         result_queue = mp.JoinableQueue()
+        skipped_queue = mp.JoinableQueue()
         processes = []
         reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
         reader.start()
@@ -970,7 +980,7 @@ def main():
         out_writer.start()
         skipped = []
         for i in range(args.procs):
-            basecall_worker = mp.Process(target=submit_read, args=(args, input_queue, result_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
+            basecall_worker = mp.Process(target=submit_read, args=(args, input_queue, result_queue, skipped_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
             basecall_worker.start()
             processes.append(basecall_worker)
 
@@ -979,6 +989,29 @@ def main():
             p.join()
         result_queue.put(None)
         out_writer.join()
+        if skipped_queue.qsize() > 0:
+            skipped = 0
+            skipped_queue.put(None)
+            if "/" in args.output:
+                SKIPPED = open("{}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                print("Skipped reads detected, writing details to file: {}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])))
+            else:
+                SKIPPED = open("./skipped_reads.txt", "w")
+                print("Skipped reads detected, writing details to file: ./skipped_reads.txt")
+            
+            SKIPPED.write("read_id\tstage\terror\n")
+
+            while True:
+                batch = skipped_queue.get()
+                if batch is None:
+                    break
+                for read_id, stage, error in batch:
+                    skipped += 1
+                    SKIPPED.write("{}\t{}\t{}\n".format(read_id, stage, error))
+            
+            SKIPPED.close()
+            print("Skipped reads total: {}".format(skipped))
+
         print("\n")
         print("Basecalling complete!\n")
 

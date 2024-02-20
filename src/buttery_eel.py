@@ -546,7 +546,17 @@ def submit_read(args, iq, rq, sk, address, config, params, N):
                                 # handle the exception
                                 # print("An exception occurred in stage 1:", type(error).__name__, "-", error)
                                 # print("Basecalling didn't complete for read: {}".format(read_id))
-                                skipped_list.append((read_id, "stage-1", "{}-{}".format(type(error).__name__,error)))
+                                # print(call)
+                                # for i in call:
+                                #     if isinstance(call[i], dict):
+                                #         for j in call[i]:
+                                #             print("{}: {}".format(j, call[i][j]))
+                                #     else:
+                                #         print("{}: {}".format(i, call[i]))
+                                if call['metadata']['duration'] < 100:
+                                    skipped_list.append((read_id, "stage-1", "signal too shoort: {}".format(call['metadata']['duration'])))
+                                else:
+                                    skipped_list.append((read_id, "stage-1", "{}-{}".format(type(error).__name__,error)))
                                 continue
                             try:
                                 if len(bcalled_read["sequence"]) == 0:

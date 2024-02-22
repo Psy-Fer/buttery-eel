@@ -64,6 +64,9 @@ Alternatively, you can manually execute buttery-eel if you have sourced the virt
 buttery-eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac_prom.cfg --device cuda:all -i reads.blow5 -o reads.reads.fastq --port 5000 --use_tcp  # and any other parameters
 ```
 
+furthermore, if you are using the latest version, and are using dorado-server backend, then simply set the port argumnet to `--port auto` and it will automatically find a free port for you.
+
+
 # Usage
 
 ```

@@ -966,8 +966,10 @@ def main():
         print()
 
         mp.set_start_method('spawn')
-        input_queue = mp.JoinableQueue()
-        result_queue = mp.JoinableQueue()
+        im = mp.Manager()
+        rm = mp.Manager()
+        input_queue = im.JoinableQueue()
+        result_queue = rm.JoinableQueue()
         processes = []
         reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
         reader.start()

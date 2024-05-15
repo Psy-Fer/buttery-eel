@@ -509,18 +509,26 @@ def submit_read(args, iq, rq, address, config, params, N):
                 result = False
                 tries = 0
                 while not result:
-                    result = client.pass_read(helper_functions.package_read(
-                                raw_data=np.frombuffer(read['signal'], np.int16),
-                                read_id=read_id,
-                                start_time=read['start_time'],
-                                daq_offset=read['offset'],
-                                daq_scaling=scale,
-                                sampling_rate=read['sampling_rate'],
-                                mux=read['start_mux'],
-                                channel=int(read["channel_number"]),
-                                run_id=read_store[read_id]["header_array"]["run_id"],
-                                duration=read['len_raw_signal'],
-                            ))
+                    if args.above_7310:
+                        result = client.pass_read(helper_functions.package_read(
+                                    raw_data=np.frombuffer(read['signal'], np.int16),
+                                    read_id=read_id,
+                                    start_time=read['start_time'],
+                                    daq_offset=read['offset'],
+                                    daq_scaling=scale,
+                                    sampling_rate=read['sampling_rate'],
+                                    mux=read['start_mux'],
+                                    channel=int(read["channel_number"]),
+                                    run_id=read_store[read_id]["header_array"]["run_id"],
+                                    duration=read['len_raw_signal'],
+                                ))
+                    else:
+                        result = client.pass_read(helper_functions.package_read(
+                                    raw_data=np.frombuffer(read['signal'], np.int16),
+                                    read_id=read_id,
+                                    daq_offset=read['offset'],
+                                    daq_scaling=scale,
+                                ))
                     if tries > 1:
                         time.sleep(client.throttle)
                     tries += 1
@@ -847,6 +855,27 @@ def main():
     # args = parser.parse_args()
     # This collects known and unknown args to parse the server config options
     args, other_server_args = parser.parse_known_args()
+
+
+    # get version to set secret flags
+    try:
+        major, minor, patch = [int(i) for i in pybasecall_client_lib.__version__.split(".")]
+    except:
+        major, minor, patch = [int(i) for i in pyguppy_client_lib.__version__.split(".")]
+    if major >= 7 and minor >= 3:
+        above_7310_flag = True
+    else:
+        above_7310_flag = False
+
+
+    # add super sneaky hidden flags the user can't interact with but makes global sharing easier
+    extra_args = argparse.Namespace(
+        above_7310=above_7310_flag, # is the version >= 7.3.* where the name and inputs change?
+    )
+
+    # now merge them. This will all get printed into the arg print below which also helps with troubleshooting
+    args = argparse.Namespace(**vars(args), **vars(extra_args))
+
 
 
     if len(sys.argv) == 1:

@@ -175,6 +175,11 @@ def sam_header(OUT, sep='\t'):
     This is taken from Bonito by Chris Seymour at ONT.
     https://github.com/nanoporetech/bonito/blob/master/bonito/io.py#L103
     """
+    try:
+        basecaller_version = pybasecall_client_lib.__version__
+    except:
+        basecaller_version = pyguppy_client_lib.__version__
+
     HD = sep.join([
         '@HD',
         'VN:1.5',
@@ -184,7 +189,7 @@ def sam_header(OUT, sep='\t'):
         '@PG',
         'ID:basecaller',
         'PN:ont basecaller',
-        'VN:%s' % pyguppy_client_lib.__version__,
+        'VN:%s' % basecaller_version,
     ])
     PG2 = sep.join([
         '@PG',
@@ -868,7 +873,10 @@ def main():
         check = True
         check_major = 6
         check_minor = 3
-        major, minor, patch = [int(i) for i in pyguppy_client_lib.__version__.split(".")]
+        try:
+            major, minor, patch = [int(i) for i in pybasecall_client_lib.__version__.split(".")]
+        except:
+            major, minor, patch = [int(i) for i in pyguppy_client_lib.__version__.split(".")]
         if major < check_major:
             check = False
         elif major == check_major:
@@ -878,9 +886,11 @@ def main():
         print("MOD CALLING VERSION CHECK: >6.3.0? {}".format(check))
         print()
         if not check:
-            print("ERROR: Please use guppy/dorado and ont-pyguppy-client-lib version 6.3.0 or higher for modification calling")
+            print("ERROR: Please use guppy/dorado and ont-pyguppy-client-lib/pybasecall_client_lib version 6.3.0 or higher for modification calling")
             print()
             sys.exit(1)
+    
+
 
     # ==========================================================================
     # Start guppy_basecall_server

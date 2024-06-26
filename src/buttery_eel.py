@@ -251,7 +251,7 @@ def main():
             out_writer.start()
             # set up each worker to have a unique queue, so it only processes 1 channel at a time
             for name in queue_names:
-                basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queues[name], result_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
+                basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queues[name], result_queue, address, config, params, name), daemon=True, name='basecall_worker_{}'.format(name))
                 basecall_worker.start()
                 processes.append(basecall_worker)
         else:

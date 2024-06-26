@@ -255,6 +255,7 @@ def write_output(args, read, OUT, SAM_OUT):
     if not args.quiet:
         if total_reads % div == 0:
             print("processed reads: %d" % total_reads)
+            # TODO: Add duplex read count here as well with (%)
             sys.stdout.flush()
         # don't make div larger than 500K
         if total_reads >= div*10 and div <= 50000:

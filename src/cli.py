@@ -24,6 +24,7 @@ def get_args():
     read_splitting = parser.add_argument_group("Read splitting Options")
     adapter_trimming = parser.add_argument_group("Adapter trimming Options")
     barcode_dmux = parser.add_argument_group("Barcode demultiplexing Options")
+    duplex = parser.add_argument_group("Duplex Options")
 
     # Args for the wrapper, and then probably best to just have free form args for guppy
     run_options.add_argument("-i", "--input", required=True,
@@ -90,6 +91,12 @@ def get_args():
                         help="Minimum score for a rear barcode to be classified")
     barcode_dmux.add_argument("--min_score_barcode_mid", type=float, default=60.0,
                         help="Minimum score for mid barcodes to be detected")
+    
+    # Duplex
+    duplex.add_argument("--duplex", action="store_true",
+                        help="Turn on duplex calling - channel based")
+
+
     # parser.add_argument("--max_queued_reads", default="2000",
     #                     help="Number of reads to send to guppy server queue")
     # parser.add_argument("--chunk_size", default="2000",

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# region IMPORTS
 import argparse
 import sys
 import os
@@ -18,11 +19,11 @@ except ImportError:
 
 from ._version import __version__
 from .cli import get_args
-from .reader import read_worker
+from .reader import read_worker, duplex_read_worker
 from .writer import write_worker
-from .basecaller import start_guppy_server_and_client, submit_read
+from .basecaller import start_guppy_server_and_client, basecaller_proc
 
-# constants
+# region constants
 total_reads = 0
 div = 50
 skipped = 0
@@ -53,7 +54,7 @@ skipped = 0
 #
 #     return model_version_id
 
-
+# region main
 def main():
     # ==========================================================================
     # Software ARGS
@@ -66,6 +67,7 @@ def main():
     -i /Data/test.blow5 -o /Data/test.fastq
 
     """
+    # region version checks
 
     VERSION = __version__
 
@@ -100,8 +102,9 @@ def main():
         arg_error(sys.stderr)
         sys.exit(1)
     
+    # region start of pipeline
     print()
-    print("               ~  buttery-eel - SLOW5 Guppy/Dorado Basecalling  ~")
+    print("               ~  buttery-eel - SLOW5 Guppy/Dorado Server Basecalling  ~")
     print("                            version: {}".format(VERSION))
     print("==========================================================================\n  ARGS\n==========================================================================")
     print("args:\n {}\n{}".format(args, other_server_args))
@@ -135,7 +138,7 @@ def main():
 
 
     # ==========================================================================
-    # Start guppy_basecall_server
+    # region Start guppy_basecall_server
     # ==========================================================================
     print("\n")
     print("==========================================================================\n  Starting Guppy/Dorado Basecalling Server\n==========================================================================")
@@ -150,7 +153,7 @@ def main():
         # ==========================================================================
         # Connect to server with guppy_basecall_client
         # ==========================================================================
-
+        # region connect client
         # TODO: add guppy_client_args
         print("==========================================================================\n  Connecting to server\n==========================================================================")
         print("Connection status:")
@@ -169,6 +172,7 @@ def main():
         # ==========================================================================
         # Read signal file
         # ==========================================================================
+        # region file handler
         print("==========================================================================\n  Files\n==========================================================================")
         print("Reading from: {}".format(args.input))
 
@@ -223,21 +227,42 @@ def main():
         # ==========================================================================
         # Process reads and send to basecall server
         # ==========================================================================
+        # region run
         print("==========================================================================\n  Basecalling\n==========================================================================")
         print()
 
         mp.set_start_method('spawn')
         input_queue = mp.JoinableQueue()
         result_queue = mp.JoinableQueue()
+
         processes = []
-        reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
-        reader.start()
-        out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
-        out_writer.start()
-        for i in range(args.procs):
-            basecall_worker = mp.Process(target=submit_read, args=(args, input_queue, result_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
-            basecall_worker.start()
-            processes.append(basecall_worker)
+
+        if args.duplex:
+            print("Duplex mode active - a duplex model must be used to output duplex reads")
+            print("Buttery-eel does not have checks for this, as the model names are in flux")
+            print()
+            duplex_pre_queue = mp.JoinableQueue()
+            # create the same number of queues as there are worker processes so each has its own queue
+            queue_names = range(args.procs)
+            duplex_queues = {name: mp.JoinableQueue() for name in queue_names}
+            reader = mp.Process(target=duplex_read_worker, args=(args, duplex_queues, duplex_pre_queue), name='duplex_read_worker')
+            reader.start()
+            out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
+            out_writer.start()
+            # set up each worker to have a unique queue, so it only processes 1 channel at a time
+            for name in queue_names:
+                basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queues[name], result_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
+                basecall_worker.start()
+                processes.append(basecall_worker)
+        else:
+            reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
+            reader.start()
+            out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
+            out_writer.start()
+            for i in range(args.procs):
+                basecall_worker = mp.Process(target=basecaller_proc, args=(args, input_queue, result_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
+                basecall_worker.start()
+                processes.append(basecall_worker)
 
         reader.join()
         for p in processes:

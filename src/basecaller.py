@@ -120,6 +120,7 @@ def submit_reads(args, client, batch):
     read_store = {}
     for read in batch:
         read_id = read['read_id']
+        # TODO: remove the signal from the read_store to reduce memory usage
         # if args.seq_sum:
         read_store[read_id] = read
         # calculate scale
@@ -316,6 +317,7 @@ def basecaller_proc(args, iq, rq, address, config, params, N):
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
+    
     client_sub = pclient(address=address, config=config)
     client_sub.set_params(params)
     # submit a batch of reads to be basecalled
@@ -324,11 +326,14 @@ def basecaller_proc(args, iq, rq, address, config, params, N):
             batch = iq.get()
             if batch is None:
                 break
+            print("[BASECALLER] - submitting channel: {}".format(batch[0]["channel_number"]))
             # Submit to be basecalled
             read_counter, read_store = submit_reads(args, client, batch)
             # now collect the basecalled reads
+            print("[BASECALLER] - getting basecalled channel: {}".format(batch[0]["channel_number"]))
             bcalled_list = get_reads(args, client, read_counter, read_store)
             # TODO: make a skipped queue to handle skipped reads
+            print("[BASECALLER] - writing channel: {}".format(batch[0]["channel_number"]))
             rq.put(bcalled_list)
             iq.task_done()
     

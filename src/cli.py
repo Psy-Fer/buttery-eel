@@ -95,6 +95,8 @@ def get_args():
     # Duplex
     duplex.add_argument("--duplex", action="store_true",
                         help="Turn on duplex calling - channel based")
+    duplex.add_argument("--single", action="store_true",
+                        help="use only a single proc for testing")
 
 
     # parser.add_argument("--max_queued_reads", default="2000",

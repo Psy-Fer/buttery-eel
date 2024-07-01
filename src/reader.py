@@ -272,3 +272,55 @@ def duplex_read_worker(args, dq, pre_dq):
         ps.print_stats()
         with open("read_worker.log", 'w') as f:
             print(s.getvalue(), file=f)
+
+
+def duplex_read_worker_single(args, dq, pre_dq):
+    '''
+    Single proc method
+    '''
+    if args.profile:
+        pr = cProfile.Profile()
+        pr.enable()
+
+    # read the file once, and get all the channels into the pre_dq queue
+    get_data_by_channel(args, pre_dq)
+
+    s5 = pyslow5.Open(args.input, 'r')
+    filename_slow5 = args.input.split("/")[-1]
+    header_array = {}
+    num_read_groups = s5.get_num_read_groups()
+    for read_group in range(num_read_groups):
+        header_array[read_group] = s5.get_all_headers(read_group=read_group)
+    # reads = s5.seq_reads_multi(threads=args.slow5_threads, batchsize=args.slow5_batchsize, aux='all')
+
+    # readers = {}
+    # break call
+    # ending = False
+    # pull from the pre_dq
+    while True:
+        ch = pre_dq.get()
+        if ch is None:
+            break
+        channel = ch[0]
+        print("[READER] - processing channel: {}".format(channel))
+        data = ch[1]
+        read_list = [i for i, _ in data]
+        reads = s5.get_read_list_multi(read_list, threads=args.slow5_threads, batchsize=args.slow5_batchsize, aux='all')
+        batches = _get_slow5_batch(args, s5, reads, size=args.slow5_batchsize, slow5_filename=filename_slow5, header_array=header_array)
+        for batch in chain(batches):
+            if dq.qsize() < 5:
+                dq.put(batch)
+            else:
+                time.sleep(0.1)
+
+    dq.put(None)
+
+    # if profiling, dump info into log files in current dir
+    if args.profile:
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        with open("read_worker.log", 'w') as f:
+            print(s.getvalue(), file=f)

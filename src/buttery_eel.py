@@ -19,7 +19,7 @@ except ImportError:
 
 from ._version import __version__
 from .cli import get_args
-from .reader import read_worker, duplex_read_worker
+from .reader import read_worker, duplex_read_worker, duplex_read_worker_single
 from .writer import write_worker
 from .basecaller import start_guppy_server_and_client, basecaller_proc
 
@@ -238,22 +238,42 @@ def main():
         processes = []
 
         if args.duplex:
-            print("Duplex mode active - a duplex model must be used to output duplex reads")
-            print("Buttery-eel does not have checks for this, as the model names are in flux")
-            print()
-            duplex_pre_queue = mp.JoinableQueue()
-            # create the same number of queues as there are worker processes so each has its own queue
-            queue_names = range(args.procs)
-            duplex_queues = {name: mp.JoinableQueue() for name in queue_names}
-            reader = mp.Process(target=duplex_read_worker, args=(args, duplex_queues, duplex_pre_queue), name='duplex_read_worker')
-            reader.start()
-            out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
-            out_writer.start()
-            # set up each worker to have a unique queue, so it only processes 1 channel at a time
-            for name in queue_names:
-                basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queues[name], result_queue, address, config, params, name), daemon=True, name='basecall_worker_{}'.format(name))
+            if args.single:
+                print("Duplex mode active - a duplex model must be used to output duplex reads")
+                print("Buttery-eel does not have checks for this, as the model names are in flux")
+                print("SINGLE MODE ACTIVATED - FOR TESTING")
+                print()
+                duplex_pre_queue = mp.JoinableQueue()
+                # create the same number of queues as there are worker processes so each has its own queue
+                # queue_names = range(args.procs)
+                # duplex_queues = {name: mp.JoinableQueue() for name in queue_names}
+                duplex_queue = mp.JoinableQueue()
+                reader = mp.Process(target=duplex_read_worker_single, args=(args, duplex_queue, duplex_pre_queue), name='duplex_read_worker_single')
+                reader.start()
+                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
+                out_writer.start()
+                # set up each worker to have a unique queue, so it only processes 1 channel at a time
+                basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queue, result_queue, address, config, params, 0), daemon=True, name='basecall_worker_{}'.format(0))
                 basecall_worker.start()
                 processes.append(basecall_worker)
+
+            else:
+                print("Duplex mode active - a duplex model must be used to output duplex reads")
+                print("Buttery-eel does not have checks for this, as the model names are in flux")
+                print()
+                duplex_pre_queue = mp.JoinableQueue()
+                # create the same number of queues as there are worker processes so each has its own queue
+                queue_names = range(args.procs)
+                duplex_queues = {name: mp.JoinableQueue() for name in queue_names}
+                reader = mp.Process(target=duplex_read_worker, args=(args, duplex_queues, duplex_pre_queue), name='duplex_read_worker')
+                reader.start()
+                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
+                out_writer.start()
+                # set up each worker to have a unique queue, so it only processes 1 channel at a time
+                for name in queue_names:
+                    basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queues[name], result_queue, address, config, params, name), daemon=True, name='basecall_worker_{}'.format(name))
+                    basecall_worker.start()
+                    processes.append(basecall_worker)
         else:
             reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
             reader.start()

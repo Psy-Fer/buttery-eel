@@ -206,15 +206,15 @@ def get_reads(args, client, read_counter, read_store):
                 if len(calls) > 1:
                     split_reads = True
                 for call in calls:
-                    if int(call['metadata']['channel']) > 20000:
-                        print("Fake read:", call['metadata']['channel'])
-                        continue
-                    for i in call:
-                        if isinstance(call[i], dict):
-                            for j in call[i]:
-                                print("{}: {}".format(j, call[i][j]))
-                        else:
-                            print("{}: {}".format(i, call[i]))
+                    # if int(call['metadata']['channel']) > 20000:
+                    #     print("Fake read:", call['metadata']['channel'])
+                    #     continue
+                    # for i in call:
+                    #     if isinstance(call[i], dict):
+                    #         for j in call[i]:
+                    #             print("{}: {}".format(j, call[i][j]))
+                    #     else:
+                    #         print("{}: {}".format(i, call[i]))
                     try:
                         bcalled_read = {}
                         bcalled_read["sam_record"] = ""
@@ -347,14 +347,14 @@ def basecaller_proc(args, iq, rq, address, config, params, N):
             batch = iq.get()
             if batch is None:
                 break
-            print("[BASECALLER] - submitting channel: {}".format(batch[0]["channel_number"]))
+            # print("[BASECALLER] - submitting channel: {}".format(batch[0]["channel_number"]))
             # Submit to be basecalled
             read_counter, read_store = submit_reads(args, client, batch)
             # now collect the basecalled reads
-            print("[BASECALLER] - getting basecalled channel: {}".format(batch[0]["channel_number"]))
+            # print("[BASECALLER] - getting basecalled channel: {}".format(batch[0]["channel_number"]))
             bcalled_list = get_reads(args, client, read_counter, read_store)
             # TODO: make a skipped queue to handle skipped reads
-            print("[BASECALLER] - writing channel: {}".format(batch[0]["channel_number"]))
+            # print("[BASECALLER] - writing channel: {}".format(batch[0]["channel_number"]))
             rq.put(bcalled_list)
             iq.task_done()
     

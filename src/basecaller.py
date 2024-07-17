@@ -158,6 +158,24 @@ def submit_reads(args, client, batch):
                     break
         if result:
             read_counter += 1
+    if args.duplex:
+        # send fake reads with different channels to trick server to flushing cache
+        for chhh in range(90000, 90011):
+            result = client.pass_read(helper_functions.package_read(
+                                raw_data=np.frombuffer(read['signal'], np.int16),
+                                read_id=str(chhh),
+                                start_time=read['start_time'],
+                                daq_offset=read['offset'],
+                                daq_scaling=scale,
+                                sampling_rate=read['sampling_rate'],
+                                mux=read['start_mux'],
+                                channel=int(chhh),
+                                run_id=read_store[read_id]["header_array"]["run_id"],
+                                duration=read['len_raw_signal'],
+                            ))
+            if result:
+                read_counter += 1
+
     return read_counter, read_store
 
 
@@ -188,12 +206,15 @@ def get_reads(args, client, read_counter, read_store):
                 if len(calls) > 1:
                     split_reads = True
                 for call in calls:
-                    # for i in call:
-                    #     if isinstance(call[i], dict):
-                    #         for j in call[i]:
-                    #             print("{}: {}".format(j, call[i][j]))
-                    #     else:
-                    #         print("{}: {}".format(i, call[i]))
+                    if int(call['metadata']['channel']) > 20000:
+                        print("Fake read:", call['metadata']['channel'])
+                        continue
+                    for i in call:
+                        if isinstance(call[i], dict):
+                            for j in call[i]:
+                                print("{}: {}".format(j, call[i][j]))
+                        else:
+                            print("{}: {}".format(i, call[i]))
                     try:
                         bcalled_read = {}
                         bcalled_read["sam_record"] = ""

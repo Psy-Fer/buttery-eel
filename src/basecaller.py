@@ -44,26 +44,26 @@ def start_guppy_server_and_client(args, server_args):
     params = {}
 
     if args.moves_out:
-        if args.above_7412_flag:
+        if args.above_7412:
             params["move_enabled"] = True
         else:
             params["move_and_trace_enabled"] = True
     
     if args.call_mods:
-        if args.above_7412_flag:
+        if args.above_7412:
             params["move_enabled"] = True
         else:
             params["move_and_trace_enabled"] = True
     
-    if args.do_read_splitting:
+    if args.do_read_splitting and not args.above_7310:
         params["do_read_splitting"] = True
         params["min_score_read_splitting"] = args.min_score_read_splitting
     
-    if args.detect_adapter and not args.above_7412_flag:
+    if args.detect_adapter and not args.above_7412:
         params["detect_adapter"] = True
         params["min_score_adapter"] = args.min_score_adapter
         
-    if args.detect_mid_strand_adapter and not args.above_7412_flag:
+    if args.detect_mid_strand_adapter and not args.above_7412:
         params["detect_mid_strand_adapter"] = True
 
     if args.trim_adapters:
@@ -73,7 +73,7 @@ def start_guppy_server_and_client(args, server_args):
         params["barcode_kits"] = args.barcode_kits
         params["enable_trim_barcodes"] = args.enable_trim_barcodes
         params["require_barcodes_both_ends"] = args.require_barcodes_both_ends
-        if not args.above_7412_flag:
+        if not args.above_7412:
             params["min_score_barcode_front"] = args.min_score_barcode_front
             params["min_score_barcode_rear"] = args.min_score_barcode_rear
             params["min_score_barcode_mid"] = args.min_score_barcode_mid
@@ -81,7 +81,7 @@ def start_guppy_server_and_client(args, server_args):
             params["detect_mid_strand_barcodes"] = args.detect_mid_strand_barcodes
     
     if args.duplex:
-        if args.above_7412_flag:
+        if args.above_7412:
             params["pair_by_channel"] = True
         else:
             raise RuntimeError("Duplex calling not avilable for versions lower than dorado-server 7.4.12")

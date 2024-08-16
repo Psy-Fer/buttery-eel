@@ -5,6 +5,7 @@ import argparse
 import sys
 import os
 import multiprocessing as mp
+import platform
 
 try:
     import pybasecall_client_lib
@@ -90,6 +91,7 @@ def main():
     # add super sneaky hidden flags the user can't interact with but makes global sharing easier
     extra_args = argparse.Namespace(
         above_7310=above_7310_flag, # is the version >= 7.3.* where the name and inputs change?
+        above_7412=above_7412_flag,
     )
 
     # now merge them. This will all get printed into the arg print below which also helps with troubleshooting
@@ -234,8 +236,15 @@ def main():
         print()
 
         mp.set_start_method('spawn')
-        input_queue = mp.JoinableQueue()
-        result_queue = mp.JoinableQueue()
+
+        if platform.system() == "Darwin":
+            im = mp.Manager()
+            rm = mp.Manager()
+            input_queue = im.JoinableQueue()
+            result_queue = rm.JoinableQueue()
+        else:
+            input_queue = mp.JoinableQueue()
+            result_queue = mp.JoinableQueue()
 
         processes = []
 

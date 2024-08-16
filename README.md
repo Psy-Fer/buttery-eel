@@ -20,7 +20,7 @@ You can download guppy or dorado server here: https://community.nanoporetech.com
 
 # Quickstart
 
-Using python3, preferably python3.7 to 3.9. Python 3.10 and higher does not yet have any pip wheel builds available for v6.3.8 and lower of guppy
+Using python3, preferably python3.8 to 3.12. Older versions of guppy will work with 3.7, but not with 3.10 or higher.
 
 Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.8`. Alternatively, you can install a version of `dorado server` too.
 Download: https://community.nanoporetech.com/downloads

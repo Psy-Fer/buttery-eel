@@ -25,9 +25,9 @@ from .writer import write_worker
 from .basecaller import start_guppy_server_and_client, basecaller_proc
 
 # region constants
-total_reads = 0
-div = 50
-skipped = 0
+# total_reads = 0
+# div = 50
+# skipped = 0
 
 # How we get data out of the model files if they are not provided by the metadata output
 

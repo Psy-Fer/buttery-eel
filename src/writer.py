@@ -209,6 +209,8 @@ def write_worker(args, q, files, SAM_OUT):
         for fffile in bc_files:
             bc_files[fffile].close()
     
+    print("Total reads: {}".format(total_reads))
+    
     if args.profile:
         pr.disable()
         s = io.StringIO()

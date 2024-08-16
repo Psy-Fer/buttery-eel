@@ -75,14 +75,16 @@ def main():
     args, other_server_args, arg_error = get_args()
 
     # get version to set secret flags
+    above_7310_flag = False
+    above_7412_flag = False
     try:
         major, minor, patch = [int(i) for i in pybasecall_client_lib.__version__.split(".")]
     except:
         major, minor, patch = [int(i) for i in pyguppy_client_lib.__version__.split(".")]
     if major >= 7 and minor >= 3:
         above_7310_flag = True
-    else:
-        above_7310_flag = False
+    if major >= 7 and minor >= 4:
+        above_7412_flag = True
 
 
     # add super sneaky hidden flags the user can't interact with but makes global sharing easier

@@ -44,20 +44,26 @@ def start_guppy_server_and_client(args, server_args):
     params = {}
 
     if args.moves_out:
-        params["move_and_trace_enabled"] = True
+        if args.above_7412_flag:
+            params["move_enabled"] = True
+        else:
+            params["move_and_trace_enabled"] = True
     
     if args.call_mods:
-        params["move_and_trace_enabled"] = True
+        if args.above_7412_flag:
+            params["move_enabled"] = True
+        else:
+            params["move_and_trace_enabled"] = True
     
     if args.do_read_splitting:
         params["do_read_splitting"] = True
         params["min_score_read_splitting"] = args.min_score_read_splitting
     
-    if args.detect_adapter:
+    if args.detect_adapter and not args.above_7412_flag:
         params["detect_adapter"] = True
         params["min_score_adapter"] = args.min_score_adapter
         
-    if args.detect_mid_strand_adapter:
+    if args.detect_mid_strand_adapter and not args.above_7412_flag:
         params["detect_mid_strand_adapter"] = True
 
     if args.trim_adapters:
@@ -65,16 +71,20 @@ def start_guppy_server_and_client(args, server_args):
     
     if args.barcode_kits:
         params["barcode_kits"] = args.barcode_kits
-        params["min_score_barcode_front"] = args.min_score_barcode_front
-        params["min_score_barcode_rear"] = args.min_score_barcode_rear
-        params["min_score_barcode_mid"] = args.min_score_barcode_mid
-        # docs are a bit wonky on this, enable_trim_barcodes vs barcode_trimming_enabled
         params["enable_trim_barcodes"] = args.enable_trim_barcodes
         params["require_barcodes_both_ends"] = args.require_barcodes_both_ends
-        params["detect_mid_strand_barcodes"] = args.detect_mid_strand_barcodes
+        if not args.above_7412_flag:
+            params["min_score_barcode_front"] = args.min_score_barcode_front
+            params["min_score_barcode_rear"] = args.min_score_barcode_rear
+            params["min_score_barcode_mid"] = args.min_score_barcode_mid
+            # docs are a bit wonky on this, enable_trim_barcodes vs barcode_trimming_enabled
+            params["detect_mid_strand_barcodes"] = args.detect_mid_strand_barcodes
     
     if args.duplex:
-        params["pair_by_channel"] = True
+        if args.above_7412_flag:
+            params["pair_by_channel"] = True
+        else:
+            raise RuntimeError("Duplex calling not avilable for versions lower than dorado-server 7.4.12")
 
     # This function has it's own prints that may want to be suppressed
     with redirect_stdout(StringIO()) as fh:

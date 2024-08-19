@@ -240,15 +240,21 @@ def main():
         if platform.system() == "Darwin":
             im = mp.Manager()
             rm = mp.Manager()
+            sm = mp.Manager()
             input_queue = im.JoinableQueue()
             result_queue = rm.JoinableQueue()
+            skip_queue = sm.JoinableQueue()
         else:
             input_queue = mp.JoinableQueue()
             result_queue = mp.JoinableQueue()
+            skip_queue = mp.JoinableQueue()
 
         processes = []
 
         if args.duplex:
+            if platform.system() == "Darwin":
+                 print("MacOS not currently supported for duplex calling")
+                 sys.exit(1)
             if args.single:
                 print("Duplex mode active - a duplex model must be used to output duplex reads")
                 print("Buttery-eel does not have checks for this, as the model names are in flux")
@@ -264,7 +270,7 @@ def main():
                 out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
                 out_writer.start()
                 # set up each worker to have a unique queue, so it only processes 1 channel at a time
-                basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queue, result_queue, address, config, params, 0), daemon=True, name='basecall_worker_{}'.format(0))
+                basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queue, result_queue, skip_queue, address, config, params, 0), daemon=True, name='basecall_worker_{}'.format(0))
                 basecall_worker.start()
                 processes.append(basecall_worker)
 
@@ -282,7 +288,7 @@ def main():
                 out_writer.start()
                 # set up each worker to have a unique queue, so it only processes 1 channel at a time
                 for name in queue_names:
-                    basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queues[name], result_queue, address, config, params, name), daemon=True, name='basecall_worker_{}'.format(name))
+                    basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queues[name], result_queue, skip_queue, address, config, params, name), daemon=True, name='basecall_worker_{}'.format(name))
                     basecall_worker.start()
                     processes.append(basecall_worker)
         else:
@@ -291,7 +297,7 @@ def main():
             out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT), name='write_worker')
             out_writer.start()
             for i in range(args.procs):
-                basecall_worker = mp.Process(target=basecaller_proc, args=(args, input_queue, result_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
+                basecall_worker = mp.Process(target=basecaller_proc, args=(args, input_queue, result_queue, skip_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
                 basecall_worker.start()
                 processes.append(basecall_worker)
 
@@ -300,8 +306,36 @@ def main():
             p.join()
         result_queue.put(None)
         out_writer.join()
+        
+        if skip_queue.qsize() > 0:
+            print("1")
+            skipped = 0
+            skip_queue.put(None)
+            if "/" in args.output:
+                SKIPPED = open("{}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                print("Skipped reads detected, writing details to file: {}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])))
+            else:
+                SKIPPED = open("./skipped_reads.txt", "w")
+                print("Skipped reads detected, writing details to file: ./skipped_reads.txt")
+
+            SKIPPED.write("read_id\tstage\terror\n")
+            print("2")
+
+            while True:
+                read = skip_queue.get()
+                if read is None:
+                    break
+                read_id, stage, error = read
+                skipped += 1
+                SKIPPED.write("{}\t{}\t{}\n".format(read_id, stage, error))
+
+            print("3")
+            SKIPPED.close()
+            print("Skipped reads total: {}".format(skipped))
+        
         print("\n")
         print("Basecalling complete!\n")
+
 
         # ==========================================================================
         # Finish up, close files, disconnect client and terminate server

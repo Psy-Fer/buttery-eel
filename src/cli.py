@@ -58,7 +58,7 @@ def get_args():
 
     # read splitting
     read_splitting.add_argument("--do_read_splitting", action="store_true",
-                        help="Perform read splitting based on mid-strand adapter detection")
+                        help="Perform read splitting based on mid-strand adapter detection - On by default dorado-server >= v7.3.10")
     read_splitting.add_argument("--min_score_read_splitting", type=float, default=50.0,
                         help="Minimum mid-strand adapter score for reads to be split")
     

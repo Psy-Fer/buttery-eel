@@ -121,7 +121,7 @@ def calibration(digitisation, range):
     return range / digitisation
 
 # region submit reads
-def submit_reads(args, client, batch):
+def submit_reads(args, client, sk, batch):
     '''
     Submit batch of reads to basecaller
     '''
@@ -164,7 +164,7 @@ def submit_reads(args, client, batch):
             if tries >= 1000:
                 if not result:
                     print("Skipped a read: {}".format(read_id))
-                    skipped.append(read_id)
+                    skipped.append([read_id, "stage-0", "timed out trying to submit read to client"])
                     break
         if result:
             read_counter += 1
@@ -185,12 +185,15 @@ def submit_reads(args, client, batch):
                             ))
             if result:
                 read_counter += 1
-
+    if len(skipped) > 0:
+        for i in skipped:
+            sk.put(i)
+    
     return read_counter, read_store
 
 
 # region get reads
-def get_reads(args, client, read_counter, read_store):
+def get_reads(args, client, read_counter, sk, read_store):
     '''
     Get reads from the basecaller and process them
     '''
@@ -200,6 +203,7 @@ def get_reads(args, client, read_counter, read_store):
         qs_cutoff = float(args.qscore)
     done = 0
     bcalled_list = []
+    skipped_list = []
 
     while done < read_counter:
         bcalled = client.get_completed_reads()
@@ -241,10 +245,12 @@ def get_reads(args, client, read_counter, read_store):
                     except Exception as error:
                         # handle the exception
                         print("An exception occurred in stage 1:", type(error).__name__, "-", error)
-                        sys.exit(1)
+                        skipped_list.append([read_id, "stage-1", "Failed to get initial sequence data from read record"])
+                        continue
                     try:
                         if len(bcalled_read["sequence"]) == 0:
                             print("read_id: {} has a sequence length of zero, skipping".format(read_id))
+                            skipped_list.append([read_id, "stage-1", "Sequence length of zero"])
                             continue
                         bcalled_read["qscore"] = call['datasets']['qstring']
                         if args.moves_out:
@@ -257,8 +263,9 @@ def get_reads(args, client, read_counter, read_store):
                                 # handle the exception
                                 print("An exception occurred getting sam_record/alignment_sam_record for {}:", read_id, type(error).__name__, "-", error)
                                 bcalled_read["sam_record"] = ""
+                                skipped_list.append([read_id, "stage-1", "Failed to get sam_record/alignment_sam_record"])
                                 continue
-                        if args.do_read_splitting:
+                        if args.do_read_splitting or args.above_7310:
                             bcalled_read["num_samples"] = None
                             bcalled_read["trimmed_samples"] = None
                         else:
@@ -273,7 +280,8 @@ def get_reads(args, client, read_counter, read_store):
                     except Exception as error:
                         # handle the exception
                         print("An exception occurred in stage 2:", type(error).__name__, "-", error)
-                        sys.exit(1)
+                        skipped_list.append([read_id, "stage-2", "Error getting data related to sam outpout"])
+                        continue
                     try:
                         if SPLIT_PASS:
                             if bcalled_read["read_qscore"] >= qs_cutoff:
@@ -333,15 +341,19 @@ def get_reads(args, client, read_counter, read_store):
                     except Exception as error:
                         # handle the exception
                         print("An exception occurred in stage 3:", type(error).__name__, "-", error)
-                        sys.exit(1)
-
-                    
+                        skipped_list.append([read_id, "stage-3", "Error splitting barcodes or sequencing summary"])
+                        continue
+    
+    if len(skipped_list) > 0:
+        for i in skipped_list:
+            sk.put(i)
+    
     read_counter = 0
     done = 0
     return bcalled_list
 
 # region entry point
-def basecaller_proc(args, iq, rq, address, config, params, N):
+def basecaller_proc(args, iq, rq, sk, address, config, params, N):
     """
     submit a read to the basecall server
     """
@@ -359,10 +371,10 @@ def basecaller_proc(args, iq, rq, address, config, params, N):
                 break
             # print("[BASECALLER] - submitting channel: {}".format(batch[0]["channel_number"]))
             # Submit to be basecalled
-            read_counter, read_store = submit_reads(args, client, batch)
+            read_counter, read_store = submit_reads(args, client, sk, batch)
             # now collect the basecalled reads
             # print("[BASECALLER] - getting basecalled channel: {}".format(batch[0]["channel_number"]))
-            bcalled_list = get_reads(args, client, read_counter, read_store)
+            bcalled_list = get_reads(args, client, read_counter, sk, read_store)
             # TODO: make a skipped queue to handle skipped reads
             # print("[BASECALLER] - writing channel: {}".format(batch[0]["channel_number"]))
             rq.put(bcalled_list)

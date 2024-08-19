@@ -88,7 +88,7 @@ def start_guppy_server_and_client(args, server_args):
 
     # This function has it's own prints that may want to be suppressed
     with redirect_stdout(StringIO()) as fh:
-        server, port = helper_functions.run_server(server_args, bin_path=args.guppy_bin)
+        server, port = helper_functions.run_server(server_args, bin_path=args.basecaller_bin)
 
     if port == "ERROR":
         raise RuntimeError("Server couldn't be started")

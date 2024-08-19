@@ -1,4 +1,4 @@
- The following options were either removed:
+ The following options were removed:
 
  ```
  |      * post_out (bool):                      Flag indicating whether to return full posterior state data. Default is False.

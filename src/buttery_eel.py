@@ -31,8 +31,8 @@ from .basecaller import start_guppy_server_and_client, basecaller_proc
 
 # How we get data out of the model files if they are not provided by the metadata output
 
-# def get_model_info(config, guppy_bin):
-#     config = os.path.join(guppy_bin,"../data/", config)
+# def get_model_info(config, basecaller_bin):
+#     config = os.path.join(basecaller_bin,"../data/", config)
 #     model = ""
 #     with open(config, 'r') as f:
 #         for line in f:
@@ -48,7 +48,7 @@ from .basecaller import start_guppy_server_and_client, basecaller_proc
 #         logger.warning("could not deduce model for fastq writing, falling back to default, model_version_id=conf")
 #         model_version_id = config
 #     else:
-#         model_json = os.path.join(guppy_bin,"../data/", model)
+#         model_json = os.path.join(basecaller_bin,"../data/", model)
 #         with open(model_json, 'r') as f:
 #             jdata = json.load(f)
 #             model_version_id = jdata["version"]["id"]
@@ -63,7 +63,7 @@ def main():
     """
     Example:
 
-    buttery-eel --guppy_bin /install/ont-guppy-6.1.3/bin --use_tcp --chunk_size 200 \
+    buttery-eel --basecaller_bin /install/ont-guppy-6.1.3/bin --use_tcp --chunk_size 200 \
     --max_queued_reads 1000 -x "cuda:all" --config dna_r9.4.1_450bps_fast.cfg --port 5558 \
     -i /Data/test.blow5 -o /Data/test.fastq
 
@@ -71,9 +71,6 @@ def main():
     # region version checks
 
     VERSION = __version__
-
-    # get args from cli
-    args, other_server_args, arg_error = get_args()
 
     # get version to set secret flags
     above_7310_flag = False
@@ -87,15 +84,8 @@ def main():
     if major >= 7 and minor >= 4:
         above_7412_flag = True
 
-
-    # add super sneaky hidden flags the user can't interact with but makes global sharing easier
-    extra_args = argparse.Namespace(
-        above_7310=above_7310_flag, # is the version >= 7.3.* where the name and inputs change?
-        above_7412=above_7412_flag,
-    )
-
-    # now merge them. This will all get printed into the arg print below which also helps with troubleshooting
-    args = argparse.Namespace(**vars(args), **vars(extra_args))
+    # get args from cli
+    args, other_server_args, arg_error = get_args(above_7310_flag, above_7412_flag)
 
     if len(sys.argv) == 1:
         arg_error(sys.stderr)
@@ -306,7 +296,7 @@ def main():
             p.join()
         result_queue.put(None)
         out_writer.join()
-        
+
         if skip_queue.qsize() > 0:
             print("1")
             skipped = 0

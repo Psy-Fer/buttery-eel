@@ -32,7 +32,7 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="input blow5 file or directory for basecalling")
         run_options.add_argument("-o", "--output", required=True,
                             help="output .fastq or unaligned .sam file to write")
-        run_options.add_argument("-g", "--basecaller_bin", type=Path, required=True,
+        run_options.add_argument("-g", "--basecaller_bin", type=Path,
                             help="path to basecaller bin folder, eg: ont-dorado-server/bin")
         run_options.add_argument("--config", default="dna_r10.4.1_e8.2_400bps_5khz_hac.cfg", required=True,
                             help="basecalling model config")
@@ -116,7 +116,7 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="input blow5 file or directory for basecalling")
         run_options.add_argument("-o", "--output", required=True,
                             help="output .fastq or unaligned .sam file to write")
-        run_options.add_argument("-g", "--basecaller_bin", type=Path, required=True,
+        run_options.add_argument("-g", "--basecaller_bin", type=Path,
                             help="path to basecaller bin folder, eg: ont-dorado-server/bin")
         run_options.add_argument("--config", default="dna_r9.4.1_450bps_fast.cfg", required=True,
                             help="basecalling model config")

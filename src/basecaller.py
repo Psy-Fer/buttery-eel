@@ -31,6 +31,27 @@ def start_guppy_server_and_client(args, server_args):
     Starts server and connects client
     TODO: allow a connection to existing guppy server
     """
+    basecaller_bin = args.basecaller_bin
+    found = False
+    gotten = False
+    tmp_args = []
+    for arg in server_args:
+        if not gotten:
+            if arg == "--guppy_bin":
+                found = True
+                continue
+            if found:
+                basecaller_bin = arg
+                gotten = True
+                continue
+        tmp_args.append(arg)
+    
+    if basecaller_bin is None:
+        print("-g/--basecaller_bin/--guppy_bin is a required argument")
+        sys.exit(1)
+
+    server_args = tmp_args
+
     server_args.extend(["--log_path", args.log,
                         "--config", args.config,
                         # "--port", args.port,
@@ -88,7 +109,7 @@ def start_guppy_server_and_client(args, server_args):
 
     # This function has it's own prints that may want to be suppressed
     with redirect_stdout(StringIO()) as fh:
-        server, port = helper_functions.run_server(server_args, bin_path=args.basecaller_bin)
+        server, port = helper_functions.run_server(server_args, bin_path=basecaller_bin)
 
     if port == "ERROR":
         raise RuntimeError("Server couldn't be started")

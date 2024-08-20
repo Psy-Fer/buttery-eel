@@ -69,7 +69,7 @@ furthermore, if you are using the latest version, and are using dorado-server ba
 ## Breaking changes
 
 all:
-- `-g/--guppy_bin` is now `-g/--basecaller_bin` in buttery-eel.
+- `-g/--guppy_bin` is now `-g/--basecaller_bin` in buttery-eel. However `--guppy_bin` will still work.
 
 v7.3.10
 - ONT have removed the `--do_read_splitting` option, and it is now on by default

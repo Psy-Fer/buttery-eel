@@ -97,7 +97,7 @@ def get_args(above_7310_flag, above_7412_flag):
         duplex.add_argument("--single", action="store_true",
                             help="use only a single proc for testing - DUPLEX TESTING")
         old_args = argparse.Namespace(
-            do_read_splitting=False,
+            do_read_splitting=True,
             detect_adapter=False,
             detect_mid_strand_adapter=False,
             detect_mid_strand_barcodes=False,

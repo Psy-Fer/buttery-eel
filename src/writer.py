@@ -226,25 +226,51 @@ def write_output(args, read, OUT, SAM_OUT):
     '''
     read_id = read["read_id"]
     if SAM_OUT:
-        if args.call_mods:
-            if args.do_read_splitting:
-                OUT.write("{}\tpi:Z:{}\n".format(read["sam_record"], read["parent_read_id"]))
+        if args.duplex:
+            duplex_tag = "0"
+            if read["duplex_strand_1"] is not None:
+                duplex_tag = "1"
+            if read["duplex_parent"]:
+                duplex_tag = "-1"
+            if args.call_mods:
+                if args.do_read_splitting:
+                    OUT.write("{}\tpi:Z:{}\tdx:i:{}\n".format(read["sam_record"], read["parent_read_id"], duplex_tag))
+                else:
+                    OUT.write("{}\n".format(read["sam_record"]))
+            elif args.moves_out:
+                m = read["move_table"].tolist()
+                move_str = ','.join(map(str, m))
+                if args.do_read_splitting:
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tpi:Z:{}\tqs:i:{}\tdx:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["parent_read_id"], read["int_read_qscore"], duplex_tag))
+                else:
+                    # do ns and ts tags
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
             else:
-                OUT.write("{}\n".format(read["sam_record"]))
-        elif args.moves_out:
-            m = read["move_table"].tolist()
-            move_str = ','.join(map(str, m))
-            if args.do_read_splitting:
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tpi:Z:{}\tqs:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["parent_read_id"], read["int_read_qscore"]))
-            else:
-                # do ns and ts tags
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
+                if args.do_read_splitting:
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tpi:Z:{}\tqs:i:{}\tdx:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["parent_read_id"], read["int_read_qscore"], duplex_tag))
+                else:
+                    # do ns and ts tags
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
         else:
-            if args.do_read_splitting:
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tpi:Z:{}\tqs:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["parent_read_id"], read["int_read_qscore"]))
+            if args.call_mods:
+                if args.do_read_splitting:
+                    OUT.write("{}\tpi:Z:{}\n".format(read["sam_record"], read["parent_read_id"]))
+                else:
+                    OUT.write("{}\n".format(read["sam_record"]))
+            elif args.moves_out:
+                m = read["move_table"].tolist()
+                move_str = ','.join(map(str, m))
+                if args.do_read_splitting:
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tpi:Z:{}\tqs:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["parent_read_id"], read["int_read_qscore"]))
+                else:
+                    # do ns and ts tags
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
             else:
-                # do ns and ts tags
-                OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
+                if args.do_read_splitting:
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tpi:Z:{}\tqs:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["parent_read_id"], read["int_read_qscore"]))
+                else:
+                    # do ns and ts tags
+                    OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tNM:i:0\tqs:i:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["int_read_qscore"], read["num_samples"], read["trimmed_samples"]))
     else:
         # write fastq
         OUT.write("{}\n".format(read["header"]))

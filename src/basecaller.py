@@ -228,21 +228,23 @@ def get_reads(args, client, read_counter, sk, read_store):
                 if len(calls) > 1:
                     split_reads = True
                 for call in calls:
-                    if int(call['metadata']['channel']) > 20000:
-                        # print("Fake read:", call['metadata']['channel'])
-                        # print("Channel: {} - fake read {}/{}".format(call['metadata']['channel'], done, read_counter))
-                        done -= 1
-                        # print("ending set")
-                        # ending = True
-                        continue
+                    if args.duplex:
+                        if int(call['metadata']['channel']) > 20000:
+                            # print("Fake read:", call['metadata']['channel'])
+                            # print("Channel: {} - fake read {}/{}".format(call['metadata']['channel'], done, read_counter))
+                            done -= 1
+                            # print("ending set")
+                            # ending = True
+                            continue
                     # print("Channel: {} - read {}/{}".format(call['metadata']['channel'], done, read_counter))
                     # if call['metadata']['read_id'] == "d209a644-9086-4296-9a6f-7d037dcb959f":
-                    #     for i in call:
-                    #         if isinstance(call[i], dict):
-                    #             for j in call[i]:
-                    #                 print("{}: {}".format(j, call[i][j]))
-                    #         else:
-                    #             print("{}: {}".format(i, call[i]))
+                    # for i in call:
+                    #     if isinstance(call[i], dict):
+                    #         for j in call[i]:
+                    #             print("{}: {}".format(j, call[i][j]))
+                    #     else:
+                    #         print("{}: {}".format(i, call[i]))
+                    # sys.exit(1)
                     try:
                         bcalled_read = {}
                         bcalled_read["sam_record"] = ""
@@ -425,7 +427,6 @@ def basecaller_proc(args, iq, rq, sk, address, config, params, N):
                     # TODO: make a skipped queue to handle skipped reads
                     print("[BASECALLER] - writing channel: {}".format(ch))
                     rq.put(bcalled_list)
-                    last = False
                     read_counter = 0
                     read_store = {}
                     fake_channel_start += 10
@@ -444,14 +445,14 @@ def basecaller_proc(args, iq, rq, sk, address, config, params, N):
                 batch = iq.get()
                 if batch is None:
                     break
-                print("[BASECALLER] - submitting channel: {}".format(batch[0]["channel_number"]))
+                # print("[BASECALLER] - submitting channel: {}".format(batch[0]["channel_number"]))
                 # Submit to be basecalled
-                read_counter, read_store = submit_reads(args, client, sk, batch, last)
+                read_counter, read_store = submit_reads(args, client, sk, batch)
                 # now collect the basecalled reads
-                print("[BASECALLER] - getting basecalled channel: {}".format(batch[0]["channel_number"]))
-                bcalled_list = get_reads(args, client, read_counter, sk, read_store, last)
+                # print("[BASECALLER] - getting basecalled channel: {}".format(batch[0]["channel_number"]))
+                bcalled_list = get_reads(args, client, read_counter, sk, read_store)
                 # TODO: make a skipped queue to handle skipped reads
-                print("[BASECALLER] - writing channel: {}".format(batch[0]["channel_number"]))
+                # print("[BASECALLER] - writing channel: {}".format(batch[0]["channel_number"]))
                 rq.put(bcalled_list)
                 iq.task_done()
         

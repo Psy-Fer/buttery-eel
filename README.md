@@ -10,7 +10,7 @@
 
 ## The buttery eel - A slow5 guppy/dorado basecaller wrapper
 
-`buttery-eel` is a wrapper for `guppy` and `dorado`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`] or `dorado` server (https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/) to work.
+`buttery-eel` is a wrapper for `guppy` and `dorado`. It allows us to read [`SLOW5` files](https://github.com/hasindu2008/slow5tools), and send that data to [`guppy`] or `dorado` server (https://community.nanoporetech.com/downloads) to basecall. It requires matching versions of [`guppy/dorado`](https://community.nanoporetech.com/downloads) and [`ont-pyguppy-client-lib`](https://pypi.org/project/ont-pyguppy-client-lib/)/[`ont-pybasecall-client-lib`](https://pypi.org/project/ont-pybasecall-client-lib/) to work.
 
 You can download guppy or dorado server here: https://community.nanoporetech.com/downloads. An ONT login is required to access that page, sorry no easy way around that one without legal headaches.
 
@@ -20,12 +20,12 @@ You can download guppy or dorado server here: https://community.nanoporetech.com
 
 # Quickstart
 
-Using python3, preferably python3.7 to 3.9. Python 3.10 and higher does not yet have any pip wheel builds available for v6.3.8 and lower of guppy
+Using python3, preferably python3.8 to 3.12. Older versions of guppy will work with 3.7, but not with 3.10 or higher.
 
 Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.8`. Alternatively, you can install a version of `dorado server` too.
 Download: https://community.nanoporetech.com/downloads
 
-The `guppy` and `ont-pyguppy-client-lib` versions need to match
+The `guppy/dorado` and `ont-pyguppy-client-lib/ont-pybasecall-client-lib` versions need to match
 ```
 git clone https://github.com/Psy-Fer/buttery-eel.git
 cd buttery-eel
@@ -42,8 +42,8 @@ pip install --upgrade setuptools wheel
 # if GUPPY_VERSION=6.3.8
 # modify requirements.txt to have:
 #   ont-pyguppy-client-lib==6.3.8
-# if using DORADO_SERVER_VERSION=7.1.4
-#   ont-pyguppy-client-lib==7.1.4
+# if using DORADO_SERVER_VERSION=7.4.12
+#   ont-pybasecall-client-lib==7.4.12
 
 python setup.py install
 
@@ -66,20 +66,42 @@ buttery-eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac_prom
 
 furthermore, if you are using the latest version, and are using dorado-server backend, then simply set the port argumnet to `--port auto` and it will automatically find a free port for you.
 
+## Breaking changes
+
+all:
+- `-g/--guppy_bin` is now `-g/--basecaller_bin` in buttery-eel. However `--guppy_bin` will still work.
+
+v7.3.10
+- ONT have removed the `--do_read_splitting` option, and it is now on by default
+- `--detect_adapter` and a number of other barcode/adapter options were removed
+
+
+## Duplex calling
+
+The duplex calling does work, so long as you provide a duplex model for `--config` and the `--duplex` flag.
+
+However there are some things to note:
+- Use a single blow5 file rather than many smaller ones.
+- The basecalling server stores all the reads for 10 channels, then on the 11th, it releases the first. Buttery-eel sends 1 channel per client connection, controlled by `--procs`, and in order to force the basecaller to release the data, it sends 10 "fake" reads to the basecaller with channel numbers >9000. This is mostly due to the poor implementation of duplex in the ONT library, so I can't really do much about that.
+- You should write duplex data out using `.sam`. This will mean you get the duplex tags, dx:i:N where N=0 is simplex, N=-1 is a parent of a duplex read, and N=1 is a duplex read.
+- There is a bug in the ONT library, where if a read is split, and two reads from that split read are parents of a duplex read, one of those parent reads won't be flagged with dx:i:-1, but dx:i:0 instead. I have told ONT and they said they will fix it (Bug present in `ont-pybasecall-client-lib v7.4.12`)
+- When duplex first starts, it sequentially reads the whole blow5 file to create the channel groups. This can take a while, so please be patient.
+
+I wouldn't recommend using duplex just yet because of the issues and poor performance.
+
 
 # Usage
 
+The `--help` shown will be different for different versions of the ont library installed.
+
 ```
-usage: buttery-eel [-h] -i INPUT -o OUTPUT -g GUPPY_BIN --config CONFIG [--guppy_batchsize GUPPY_BATCHSIZE] [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS]
-                   [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE] [--quiet] [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out]
-                   [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING] [--detect_adapter] [--min_score_adapter MIN_SCORE_ADAPTER]
-                   [--trim_adapters] [--detect_mid_strand_adapter] [--seq_sum] [--barcode_kits BARCODE_KITS] [--enable_trim_barcodes] [--require_barcodes_both_ends]
-                   [--detect_mid_strand_barcodes] [--min_score_barcode_front MIN_SCORE_BARCODE_FRONT] [--min_score_barcode_rear MIN_SCORE_BARCODE_REAR]
-                   [--min_score_barcode_mid MIN_SCORE_BARCODE_MID] [--profile] [-v]
+usage: buttery-eel [-h] -i INPUT -o OUTPUT -g BASECALLER_BIN --config CONFIG [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE]
+                   [--quiet] [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out] [--trim_adapters] [--seq_sum] [--barcode_kits BARCODE_KITS] [--enable_trim_barcodes]
+                   [--require_barcodes_both_ends] [--duplex] [--single] [--profile] [-v]
 
-buttery-eel - wrapping guppy/dorado for SLOW5 basecalling
+buttery-eel - wrapping ONT basecallers (guppy/dorado) for SLOW5 basecalling
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --profile             run cProfile on all processes - for debugging benchmarking (default: False)
   -v, --version         Prints version
@@ -89,11 +111,9 @@ Run Options:
                         input blow5 file or directory for basecalling (default: None)
   -o OUTPUT, --output OUTPUT
                         output .fastq or unaligned .sam file to write (default: None)
-  -g GUPPY_BIN, --guppy_bin GUPPY_BIN
-                        path to ont_guppy/bin or ont-dorado-server/bin folder (default: None)
-  --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
-  --guppy_batchsize GUPPY_BATCHSIZE
-                        number of reads to send to guppy/dorado at a time. (default: 4000)
+  -g BASECALLER_BIN, --basecaller_bin BASECALLER_BIN
+                        path to basecaller bin folder, eg: ont-dorado-server/bin (default: None)
+  --config CONFIG       basecalling model config (default: dna_r10.4.1_e8.2_400bps_5khz_hac.cfg)
   --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
   -q QSCORE, --qscore QSCORE
                         A mean q-score to split fastq/sam files into pass/fail output (default: None)
@@ -105,14 +125,92 @@ Run Options:
   --quiet               Don't print progress (default: False)
   --max_read_queue_size MAX_READ_QUEUE_SIZE
                         Number of reads to process at a time reading slow5 (default: 20000)
-  --log LOG             guppy/dorado log folder path (default: buttery_basecaller_logs)
+  --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
+  --moves_out           output move table (sam format only) (default: False)
+
+Sequencing summary Options:
+  --seq_sum             Write out sequencing_summary.txt file (default: False)
+
+Adapter trimming Options:
+  --trim_adapters       Flag indicating that adapters should be trimmed. Default is False. (default: False)
+
+Barcode demultiplexing Options:
+  --barcode_kits BARCODE_KITS
+                        Strings naming each barcode kit to use. Default is to not do barcoding. (default: None)
+  --enable_trim_barcodes
+                        Flag indicating that barcodes should be trimmed. (default: False)
+  --require_barcodes_both_ends
+                        Flag indicating that barcodes must be at both ends. (default: False)
+
+Duplex Options:
+  --duplex              Turn on duplex calling - channel based - See README for information (default: False)
+  --single              use only a single proc for testing - DUPLEX TESTING (default: False)
+
+```
+
+Set up flags needed and run (`--use_tcp` is needed but not forced in these early versions):
+
+    buttery-eel -g ont-guppy-6.3.8/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_fast.cfg --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.fastq
+
+To call modifications, provide a `modbases` model and the `--call_mods` flag. Output will now be unaligned-sam containing the `MM/ML` tags. It will also provide the move table
+
+You must use guppy 6.3.0 or higher for mod calling
+
+    buttery-eel -g ont-guppy-6.3.8/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.mod.sam
+
+the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r10.4.1_e8.2_400bps_5khz_hac.cfg` ending in `.cfg`
+
+You can parse in any guppy/dordao flag, and buttery-eel will parse it through to the basecaller.
+
+Some common args are:
+
+- `-x/--device`: Specify CPU or GPU device: 'cpu', 'cuda:all', 'auto' or 'cuda:<device_id>[,<device_id> ...]', the default is 'cpu'. Specifying 'auto' will choose either 'cpu' or 'cuda:all' depending on the presence of a cuda device.
+- `--use_tcp`: Make connections on a tcp port instead of a Unix socket file. This flag has no effect on Windows as connections are always via tcp.
+- `-p/--port`:Port for hosting service. Specify "auto" to make server automatically search for a free port.
+
+
+## Usage for older versions < 7.3.10
+```
+usage: buttery-eel [-h] -i INPUT -o OUTPUT -g BASECALLER_BIN --config CONFIG [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE]
+                   [--quiet] [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out] [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING]
+                   [--detect_adapter] [--min_score_adapter MIN_SCORE_ADAPTER] [--trim_adapters] [--detect_mid_strand_adapter] [--seq_sum] [--barcode_kits BARCODE_KITS] [--enable_trim_barcodes]
+                   [--require_barcodes_both_ends] [--detect_mid_strand_barcodes] [--min_score_barcode_front MIN_SCORE_BARCODE_FRONT] [--min_score_barcode_rear MIN_SCORE_BARCODE_REAR]
+                   [--min_score_barcode_mid MIN_SCORE_BARCODE_MID] [--profile] [-v]
+
+buttery-eel - wrapping ONT basecallers (guppy/dorado) for SLOW5 basecalling
+
+options:
+  -h, --help            show this help message and exit
+  --profile             run cProfile on all processes - for debugging benchmarking (default: False)
+  -v, --version         Prints version
+
+Run Options:
+  -i INPUT, --input INPUT
+                        input blow5 file or directory for basecalling (default: None)
+  -o OUTPUT, --output OUTPUT
+                        output .fastq or unaligned .sam file to write (default: None)
+  -g BASECALLER_BIN, --basecaller_bin BASECALLER_BIN
+                        path to basecaller bin folder, eg: ont-dorado-server/bin (default: None)
+  --config CONFIG       basecalling model config (default: dna_r9.4.1_450bps_fast.cfg)
+  --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
+  -q QSCORE, --qscore QSCORE
+                        A mean q-score to split fastq/sam files into pass/fail output (default: None)
+  --slow5_threads SLOW5_THREADS
+                        Number of threads to use reading slow5 file (default: 4)
+  --procs PROCS         Number of worker processes to use processing reads (default: 4)
+  --slow5_batchsize SLOW5_BATCHSIZE
+                        Number of reads to process at a time reading slow5 (default: 4000)
+  --quiet               Don't print progress (default: False)
+  --max_read_queue_size MAX_READ_QUEUE_SIZE
+                        Number of reads to process at a time reading slow5 (default: 20000)
+  --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
 
 Sequencing summary Options:
   --seq_sum             Write out sequencing_summary.txt file (default: False)
 
 Read splitting Options:
-  --do_read_splitting   Perform read splitting based on mid-strand adapter detection (default: False)
+  --do_read_splitting   Perform read splitting based on mid-strand adapter detection - On by default dorado-server >= v7.3.10 (default: False)
   --min_score_read_splitting MIN_SCORE_READ_SPLITTING
                         Minimum mid-strand adapter score for reads to be split (default: 50.0)
 
@@ -122,8 +220,7 @@ Adapter trimming Options:
                         Minimum score for a front or rear adapter to be classified. Default is 60. (default: 60.0)
   --trim_adapters       Flag indicating that adapters should be trimmed. Default is False. (default: False)
   --detect_mid_strand_adapter
-                        Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False. (default:
-                        False)
+                        Flag indicating that read will be marked as unclassified if the adapter sequence appears within the strand itself. Default is False. (default: False)
 
 Barcode demultiplexing Options:
   --barcode_kits BARCODE_KITS
@@ -141,19 +238,6 @@ Barcode demultiplexing Options:
   --min_score_barcode_mid MIN_SCORE_BARCODE_MID
                         Minimum score for mid barcodes to be detected (default: 60.0)
 ```
-
-Set up flags needed and run (`--use_tcp` is needed but not forced in these early versions):
-
-    buttery-eel -g ont-guppy-6.3.8/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_fast.cfg --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.fastq
-
-To call modifications, provide a `modbases` model and the `--call_mods` flag. Output will now be unaligned-sam containing the `MM/ML` tags. It will also provide the move table
-
-You must use guppy 6.3.0 or higher for mod calling
-
-    buttery-eel -g ont-guppy-6.3.8/bin --use_tcp -x "cuda:all" --config dna_r9.4.1_450bps_modbases_5hmc_5mc_cg_fast.cfg --call_mods --port 5558 -i PAF25452_pass_bfdfd1d8_11.blow5 -o test.mod.sam
-
-the `--config` file can be found using this command with guppy `guppy_basecaller --print_workflows` and looking up the appropriate kit and flowcell type. Specify the format like this `--config dna_r9.4.1_450bps_fast.cfg` ending in `.cfg`
-
 
 ## Aligning uSAM output and getting sorted bam using -y in minimap2
 
@@ -209,6 +293,7 @@ So using this library and some helpful hints from the readfish/ReadUntil basecal
 
 The best thing about this, is all of the libraries and code is open, and so we can share a method that doesn't cause any legal headaches, and also doesn't require the ONT devs to accept any pull requests or code changes. This just wraps around any `guppy` release like a "buttery eel", and you can use `SLOW5`.
 
+There is now a new python library/API for the dorado-server builds called `ont-pybasecall-client-lib`. It has replaced `ont-pyguppy-client-lib`. There are a number of breaking changes with this change, and I have done my best to handle them. Please let me know if something does work for you.
 
 # Acknowledgments
 
@@ -221,8 +306,10 @@ The best thing about this, is all of the libraries and code is open, and so we c
 
 # Software used
 - [slow5lib/pyslow5](https://github.com/hasindu2008/slow5lib)
-- [ONT guppy]()
-- [ONT ont-pyguppy-client-lib](https://pypi.org/project/ont-pyguppy-client-lib/6.2.1/)
+- [ONT guppy](https://community.nanoporetech.com/downloads)
+- [ONT dorado-server](https://community.nanoporetech.com/downloads)
+- [ONT ont-pyguppy-client-lib](https://pypi.org/project/ont-pyguppy-client-lib/)
+- [ONT ont-pyguppy-client-lib](https://pypi.org/project/ont-pybasecall-client-lib/)
 - basecaller code and flow mostly follows the methods used in [readfish](https://github.com/LooseLab/readfish/blob/23dd37117bce576b99caf097e7711dc87d30fa0a/ru/basecall.py) by Matt Loose and Alexander Payne
 
 

@@ -229,6 +229,7 @@ def duplex_read_worker(args, dq, pre_dq):
                 if dq[qname].qsize() < 5:
                     batch = next(reads, None)
                     if batch is None:
+                        dq[qname].put("end")
                         free_names.append(qname)
                         taken_names.remove(qname)
                     else:
@@ -248,7 +249,7 @@ def duplex_read_worker(args, dq, pre_dq):
                 ending = True
                 continue
             channel = ch[0]
-            print("processing channel: {}".format(channel))
+            print("[READER] - processing channel: {}".format(channel))
             data = ch[1]
             read_list = [i for i, _ in data]
             q = free_names[0]

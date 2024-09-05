@@ -93,7 +93,7 @@ def get_args(above_7310_flag, above_7412_flag):
         
         # Duplex
         duplex.add_argument("--duplex", action="store_true",
-                            help="Turn on duplex calling - channel based - NOT WORKING JUST YET")
+                            help="Turn on duplex calling - channel based - See README for information")
         duplex.add_argument("--single", action="store_true",
                             help="use only a single proc for testing - DUPLEX TESTING")
         old_args = argparse.Namespace(

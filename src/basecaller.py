@@ -365,7 +365,7 @@ def get_reads(args, client, read_counter, sk, read_store):
                                         "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
                                         "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
                                         "barcode_rear_end_index"]
-                            bc_sum_out = "\t".join([bcalled_read["parent_read_id"]]+[bcalled_read["read_id"]]+[str(call['metadata'][i]) for i in bc_keys])
+                            bc_sum_out = "\t".join([bcalled_read["parent_read_id"]]+[bcalled_read["read_id"]]+[str(call['metadata'].get(i, ".")) for i in bc_keys])
                             bcalled_read["bc_sum_out"] = bc_sum_out
 
 

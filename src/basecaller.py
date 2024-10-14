@@ -339,9 +339,9 @@ def get_reads(args, client, read_counter, sk, read_store):
                         bcalled_read["scaling_med_abs_dev"] = round(float(call['metadata']['scaling_med_abs_dev']), 8)
                         bcalled_read["scaling_version"] = call['metadata']['scaling_version']
                         # pore_type = read_store[read_id]["header_array"].get('pore_type', 'not_set')
-                        experiment_id = read_store[read_id]["header_array"]['protocol_group_id']
+                        experiment_id = read_store[read_id]["header_array"].get('protocol_group_id', ".")
                         run_id = read_store[read_id]["header_array"]["run_id"]
-                        sample_id = read_store[read_id]["header_array"]["sample_id"]
+                        sample_id = read_store[read_id]["header_array"].get("sample_id", ".")
                         strand_score_template = round(call['metadata'].get('call_score', 0.0), 6)
                         sequence_length = call['metadata']['sequence_length']
                         bcalled_read["sequence_length"] = sequence_length

@@ -29,9 +29,14 @@ die(){
 }
 
 GUPPY_VERSION=7.4.12
-CURRENT_GUPPY=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 3)
-test -z ${CURRENT_GUPPY} && die "ont-pybasecall-client-lib not found in requirements.txt"
-sed -i "s/${CURRENT_GUPPY}/${GUPPY_VERSION}/" requirements.txt || die "sed failed"
+CURRENT_DORADO=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 3)
+GUPPY_LIB=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 1)
+DORADO_LIB=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 1)
+test -z ${CURRENT_DORADO} && die "ont-pybasecall-client-lib not found in requirements.txt"
+test -z ${DORADO_LIB} && die "ont-pybasecall-client-lib not found in requirements.txt"
+sed -i "s/${CURRENT_DORADO}/${GUPPY_VERSION}/" requirements.txt || die "sed failed"
+sed -i "s/${DORADO_LIB}/ont-pybasecall-client-lib/" requirements.txt || die "sed failed"
+sed -i "s/${GUPPY_LIB}/#${GUPPY_LIB}/" requirements.txt || die "sed failed"
 
 test -z $EEL_PYTHON3 && EEL_PYTHON3=python3.9
 rm -rf venv3

@@ -30,8 +30,14 @@ die(){
 
 GUPPY_VERSION=6.5.7
 CURRENT_GUPPY=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 3)
-test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib not found in requirements.txt"
+GUPPY_LIB=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 1)
+DORADO_LIB=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 1)
+test -z ${CURRENT_GUPPY} && die "ont-pyguppy-client-lib version not found in requirements.txt"
+test -z ${GUPPY_LIB} && die "ont-pyguppy-client-lib not found in requirements.txt"
+sed -i "s/${GUPPY_LIB}/ont-pyguppy-client-lib/" requirements.txt || die "sed failed"
 sed -i "s/${CURRENT_GUPPY}/${GUPPY_VERSION}/" requirements.txt || die "sed failed"
+sed -i "s/${DORADO_LIB}/#${DORADO_LIB}/" requirements.txt || die "sed failed"
+
 
 test -z $EEL_PYTHON3 && EEL_PYTHON3=python3
 rm -rf venv3

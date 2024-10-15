@@ -88,10 +88,14 @@ def _get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, hea
                             "start_mux": read["start_mux"],
                             "start_time": read["start_time"],
                             "read_number": read["read_number"],
-                            "end_reason": read["end_reason"],
+                            "end_reason": read.get("end_reason", 0),
                             "median_before": read["median_before"],
-                            "end_reason_labels": slow5_obj.get_aux_enum_labels('end_reason')
                             }
+        try:
+            aux_data["end_reason_labels"] = slow5_obj.get_aux_enum_labels('end_reason')
+        except:
+            aux_data["end_reason_labels"] = ["unknown"]
+        
         read["aux_data"] = aux_data
         read["header_array"] = header_array[read_group]
         read["slow5_filename"] = slow5_filename

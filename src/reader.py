@@ -75,6 +75,7 @@ def _get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, hea
     re-batchify slow5 output
     """
     batch = []
+    no_end_reason = False
     for read in reads:
         # if args.seq_sum:
         # get header once for each read group
@@ -91,10 +92,15 @@ def _get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, hea
                             "end_reason": read.get("end_reason", 0),
                             "median_before": read["median_before"],
                             }
-        try:
-            aux_data["end_reason_labels"] = slow5_obj.get_aux_enum_labels('end_reason')
-        except:
+        if no_end_reason:
             aux_data["end_reason_labels"] = ["unknown"]
+        else:
+            try:
+                aux_data["end_reason_labels"] = slow5_obj.get_aux_enum_labels('end_reason')
+            except:
+                no_end_reason = True
+            if type(aux_data["end_reason_labels"]) != type(["a", "b"]):
+                aux_data["end_reason_labels"] = ["unknown"]
         
         read["aux_data"] = aux_data
         read["header_array"] = header_array[read_group]

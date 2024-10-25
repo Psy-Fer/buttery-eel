@@ -302,7 +302,7 @@ def main():
         out_writer.join()
 
         if skip_queue.qsize() > 0:
-            print("1")
+            # print("1")
             skipped = 0
             skip_queue.put(None)
             if "/" in args.output:
@@ -313,7 +313,7 @@ def main():
                 print("Skipped reads detected, writing details to file: ./skipped_reads.txt")
 
             SKIPPED.write("read_id\tstage\terror\n")
-            print("2")
+            # print("2")
 
             while True:
                 read = skip_queue.get()
@@ -323,7 +323,7 @@ def main():
                 skipped += 1
                 SKIPPED.write("{}\t{}\t{}\n".format(read_id, stage, error))
 
-            print("3")
+            # print("3")
             SKIPPED.close()
             print("Skipped reads total: {}".format(skipped))
         

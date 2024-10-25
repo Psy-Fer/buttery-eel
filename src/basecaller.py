@@ -261,6 +261,14 @@ def get_reads(args, client, read_counter, sk, read_store):
                         else:
                             bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata'].get('model_version_id', model_id), bcalled_read["int_read_qscore"])
                         bcalled_read["sequence"] = call['datasets']['sequence']
+                        if args.U2T:
+                            seq = []
+                            for i in bcalled_read["sequence"]:
+                                if i == "U":
+                                    seq.append("T")
+                                else:
+                                    seq.append(i)
+                            bcalled_read["sequence"] = "".join(seq)
                         if args.duplex:
                             bcalled_read["duplex_parent"] = call['metadata']['is_duplex_parent']
                             bcalled_read["duplex_strand_1"] = call['metadata'].get('duplex_strand_1', None)
@@ -289,6 +297,18 @@ def get_reads(args, client, read_counter, sk, read_store):
                                 bcalled_read["sam_record"] = ""
                                 skipped_list.append([read_id, "stage-1", "Failed to get sam_record/alignment_sam_record"])
                                 continue
+                            if len(bcalled_read["sam_record"]) > 0 and args.U2T:
+                                splitrec = bcalled_read["sam_record"].split()
+                                sam_seq = splitrec[9]
+                                brec = "\t".join(splitrec[:9])
+                                arec = "\t".join(splitrec[10:])
+                                seq = []
+                                for i in sam_seq:
+                                    if i == "U":
+                                        seq.append("T")
+                                    else:
+                                        seq.append(i)
+                                bcalled_read["sam_record"] = "\t".join([brec, seq, arec])
                         if args.do_read_splitting and not args.above_7310:
                             bcalled_read["num_samples"] = None
                             bcalled_read["trimmed_samples"] = None

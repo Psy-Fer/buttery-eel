@@ -8,8 +8,8 @@ On the python side, I use a multiprocessing method, and on the C side in pyslow5
 
 - 1 proc is used for reading data, and puts that data into an input queue.
 - 1 proc is used for writing data, and pulls that data from the output queue
+    - Multiple threads are used when reading the input data
 - multiple procs are used to pull batches of reads from the input queue, basecall them, and put the results into the output queue
-- Multiple threads are used when reading the input data
 - some procs (~2) are used by guppy/dorado to handle some interproccess communication, but usually minimal load.
 
 ## More detail
@@ -21,13 +21,15 @@ This is generally quite fast, so the default of 4 threads is usually enough for 
 For HPC or multi-GPU setups, the basecalling will consume the data faster than it can be read. So increasing `--slow5_threads` will help scale with compute.
 There is a limit on how much data will be stored in the input queue, so ram doesn't get out of hand. This is controlled by `--max_read_queue_size`. So in some cases this might need to be changed, either to limit ram usage, or to increase the input queue so more batches can be stored, for more worker procs to access.
 
-The data is stored in the input queue as batches of reads, set by `--slow5_batchsize`, which can also be tweaked to make the reading and processing more efficient depending on the systems being used.
+The data is stored in the input queue as batches of reads, set by `--slow5_batchsize`, which can also be tweaked to make the reading and processing more efficient depending on the systems being used. As of dorado-server v7.4.12, the value of procs x slow5_batchsize > dorado-server gpu batch size (found in the basecalling logs). When this rule isn't met, there will be a pause of 30s for every batch to be processed, resulting in a large increase in basecalling time. A batch size of 4000 (default) is usually fine, though may need to be increased for GPUs with large VRAM (>40gb)
 
 ### Writing data
 
 A single proc is used to read batches of reads from the output queue, and write them to the appropriate file/s.
 
 The 1 proc used to write data should be sufficient to keep up with compute. If this is ever not the case, please create an issue and let me know,and i'll add an argument to increase this.
+
+This 1 proc will spawn multiple threads, controlled by `--slow5_threads`, to decompress the batch of reads fetched.
 
 ### Processing data
 
@@ -39,10 +41,10 @@ When using multiple GPU systems, increasing the number of procs used with `--pro
 
 An example of getting full utilisation out of a HPC node, with 40 cores and 4xTesla V100 (16GB) GPUs, reading from spinning disk storage (not nvme) would be:
 ```
-–slow5_threads 10 –slow5_batchsize 100 –procs 20
+–slow5_threads 10 –slow5_batchsize 4000 –procs 20
 ```
-This will use 10 threads to get 100 reads, where each thread decompresses ~10 reads for each batch, then submits that to the input queue.
-The input queue has a default max size of 20,000 reads. 20 procs will consume 2,000 reads at a time (20 batches of 100). So there is enough "storage" in the input queue to keep enough reads to ensure all procs are working as fast as possible.
+This will use 10 threads to get 4000 reads, where each thread decompresses reads for each batch, then submits that to the input queue.
+The input queue has a default max size of 20,000 reads. 20 procs will consume 80,000 reads at a time (20 batches of 4000). This means the queue will be saturated, and allow for efficient feeding of the GPUs as the reading of the data should be faster than HAC or SUP basecalling. For systems with more GPUs or with larger VRAM, the `--max_read_queue_size` may need to be increased. Note that this value is used for both the GPU queue, and the buttery-eel queue limit. This is helpful to know when optimising RAM usage, as you essentially have double the amount of reads in this argument in flight in the system, plus whatever is being processed by the GPU and in the write queue, if the system can saturate the queues.
 
 So we have:
 - 1 proc for read

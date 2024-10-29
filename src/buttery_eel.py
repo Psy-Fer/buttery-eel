@@ -128,7 +128,6 @@ def main():
             print("ERROR: Please use guppy/dorado and ont-pyguppy-client-lib/pybasecall_client_lib version 6.3.0 or higher for modification calling")
             print()
             sys.exit(1)
-    
 
 
     # ==========================================================================
@@ -166,6 +165,17 @@ def main():
         # print(client.get_software_version())
 
         print("\n")
+
+        # check if model is for RNA and it is outputtting in sam. If so, print a warning about U/T and the flag --U2T
+        if "rna" in model_version_id or "RNA" in model_version_id:
+            if args.output.split(".")[-1]=="sam":
+                print("==========================================================================\n  RNA U/T warning \n==========================================================================")
+                print("RNA model with sam output detected")
+                if not args.U2T:
+                    print("By default, Uracil (U) will be written. To instead write Thymine (T), use the --U2T flag")
+                else:
+                    print("--U2T flag has been enabled. Uracil (U) bases will be converted to Thymine (T) bases. If this was not intended, please remove the --U2T flag")
+                print("\n")
 
         # ==========================================================================
         # Read signal file

@@ -308,7 +308,7 @@ def get_reads(args, client, read_counter, sk, read_store):
                                         seq.append("T")
                                     else:
                                         seq.append(i)
-                                bcalled_read["sam_record"] = "\t".join([brec, seq, arec])
+                                bcalled_read["sam_record"] = "\t".join([brec, "".join(seq), arec])
                         if args.do_read_splitting and not args.above_7310:
                             bcalled_read["num_samples"] = None
                             bcalled_read["trimmed_samples"] = None

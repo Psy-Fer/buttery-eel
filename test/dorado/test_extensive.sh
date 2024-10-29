@@ -190,8 +190,8 @@ echo "********************************************************************"
 echo "R9.4.1 RNA - FAST model"
 export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
 export REFIDX=/genome/gencode.v40.transcripts.fa
-export PATH_TO_FAST5=/data/hasindu/hasindu2008.git/f5c/test/rna/
-export PATH_TO_BLOW5=/data/hasindu/hasindu2008.git/f5c/test/rna/reads.blow5
+export PATH_TO_FAST5=/data/slow5-testdata/uhr_prom_rna002_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/data/slow5-testdata/uhr_prom_rna002_subsubsample/PRPN119035_reads_20k.blow5
 export MODEL=rna_r9.4.1_70bps_fast_prom.cfg
 test/dorado/test.sh &> rna.log || die "test failed. See rna.log for details"
 

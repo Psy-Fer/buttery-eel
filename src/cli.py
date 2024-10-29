@@ -188,6 +188,7 @@ def get_args(above_7310_flag, above_7412_flag):
         old_args = argparse.Namespace(
             duplex=False,
             single=False,
+            U2T=False,
             )
 
 

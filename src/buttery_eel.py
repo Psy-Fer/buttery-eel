@@ -232,7 +232,7 @@ def main():
         if "rna" in model_version_id or "RNA" in model_version_id:
             # if args.output.split(".")[-1]=="sam":
             print("==========================================================================\n  RNA U/T warning \n==========================================================================")
-            print("RNA model detected: {}/{}".format(bc_config, model_version_id))
+            print("RNA model detected: {}/{}".format(bc_config["config_name"], model_version_id))
             if not args.U2T:
                 print("By default, Uracil (U) will be written. To instead write Thymine (T), use the --U2T flag")
             else:

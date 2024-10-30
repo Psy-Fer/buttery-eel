@@ -67,7 +67,7 @@ test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
 test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
 test -z $SAMTOOLS && SAMTOOLS=samtools
 test -z $MINIMAP2 && MINIMAP2=minimap2
-test -z $COMPARE_METH && COMPARE_METH=/home/hasindu/hasindu2008.git/f5c/scripts/compare_methylation.py
+test -z $COMPARE_METH && COMPARE_METH=/install/scripts/compare_methylation.py
 
 #check if files exist
 test -e ${PATH_TO_GUPPY}/dorado_basecall_server || die  "${PATH_TO_GUPPY}/dorado_basecall_server not foundd"

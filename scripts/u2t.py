@@ -184,7 +184,7 @@ def main():
                     seq.append("T")
                 else:
                     seq.append(b)
-            read[3] = "".join(seq)
+            read[1] = "".join(seq)
             for l in read:
                 print(l)
     

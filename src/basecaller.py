@@ -3,7 +3,7 @@ from io import StringIO
 import numpy as np
 import time
 from contextlib import contextmanager, redirect_stdout
-
+import re
 
 try:
     from pybasecall_client_lib.pyclient import PyBasecallClient as pclient
@@ -261,6 +261,9 @@ def get_reads(args, client, read_counter, sk, read_store):
                         else:
                             bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata'].get('model_version_id', model_id), bcalled_read["int_read_qscore"])
                         bcalled_read["sequence"] = call['datasets']['sequence']
+                        if args.U2T:
+                            seq = []
+                            bcalled_read["sequence"] = re.sub("U", "T", bcalled_read["sequence"])
                         if args.duplex:
                             bcalled_read["duplex_parent"] = call['metadata']['is_duplex_parent']
                             bcalled_read["duplex_strand_1"] = call['metadata'].get('duplex_strand_1', None)
@@ -289,6 +292,10 @@ def get_reads(args, client, read_counter, sk, read_store):
                                 bcalled_read["sam_record"] = ""
                                 skipped_list.append([read_id, "stage-1", "Failed to get sam_record/alignment_sam_record"])
                                 continue
+                            if len(bcalled_read["sam_record"]) > 0 and args.U2T:
+                                splitrec = bcalled_read["sam_record"].split("\t")
+                                splitrec[9] = re.sub("U", "T", splitrec[9])
+                                bcalled_read["sam_record"] = "\t".join(splitrec)
                         if args.do_read_splitting and not args.above_7310:
                             bcalled_read["num_samples"] = None
                             bcalled_read["trimmed_samples"] = None
@@ -350,8 +357,8 @@ def get_reads(args, client, read_counter, sk, read_store):
                         mux = read_store[read_id]["aux_data"]['start_mux']
                         bcalled_read["mux"] = int(mux)
                         start_time = round(float(read_store[read_id]["aux_data"]['start_time']) / sample_rate, 6)
-                        end_reason_val = read_store[read_id]["aux_data"]['end_reason']
-                        end_reason = read_store[read_id]["aux_data"]['end_reason_labels'][end_reason_val]
+                        end_reason_val = read_store[read_id]["aux_data"].get('end_reason', 0)
+                        end_reason = read_store[read_id]["aux_data"].get('end_reason_labels', ["unknown"])[end_reason_val]
                         output_name = ""
                         sum_out = "\t".join([str(i) for i in [read_store[read_id]["slow5_filename"], bcalled_read["parent_read_id"], bcalled_read["read_id"], run_id, channel, mux, minknow_events,
                                 start_time, duration, passes_filtering, ".", num_events, ".",

@@ -128,7 +128,6 @@ def main():
             print("ERROR: Please use guppy/dorado and ont-pyguppy-client-lib/pybasecall_client_lib version 6.3.0 or higher for modification calling")
             print()
             sys.exit(1)
-    
 
 
     # ==========================================================================
@@ -229,6 +228,17 @@ def main():
         print("==========================================================================\n  Basecalling\n==========================================================================")
         print()
 
+        # check if model is for RNA. If so, print a warning about U/T and the flag --U2T
+        if "rna" in model_version_id or "RNA" in model_version_id:
+            # if args.output.split(".")[-1]=="sam":
+            print("==========================================================================\n  RNA U/T warning \n==========================================================================")
+            print("RNA model detected: {}/{}".format(bc_config["config_name"], model_version_id))
+            if not args.U2T:
+                print("By default, Uracil (U) will be written. To instead write Thymine (T), use the --U2T flag")
+            else:
+                print("--U2T flag has been enabled. Uracil (U) bases will be converted to Thymine (T) bases. If this was not intended, please remove the --U2T flag")
+            print("\n")
+
         mp.set_start_method('spawn')
 
         if platform.system() == "Darwin":
@@ -302,7 +312,7 @@ def main():
         out_writer.join()
 
         if skip_queue.qsize() > 0:
-            print("1")
+            # print("1")
             skipped = 0
             skip_queue.put(None)
             if "/" in args.output:
@@ -313,7 +323,7 @@ def main():
                 print("Skipped reads detected, writing details to file: ./skipped_reads.txt")
 
             SKIPPED.write("read_id\tstage\terror\n")
-            print("2")
+            # print("2")
 
             while True:
                 read = skip_queue.get()
@@ -323,7 +333,7 @@ def main():
                 skipped += 1
                 SKIPPED.write("{}\t{}\t{}\n".format(read_id, stage, error))
 
-            print("3")
+            # print("3")
             SKIPPED.close()
             print("Skipped reads total: {}".format(skipped))
         

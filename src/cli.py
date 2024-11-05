@@ -25,6 +25,7 @@ def get_args(above_7310_flag, above_7412_flag):
         read_splitting = parser.add_argument_group("Read splitting Options")
         adapter_trimming = parser.add_argument_group("Adapter trimming Options")
         barcode_dmux = parser.add_argument_group("Barcode demultiplexing Options")
+        rna = parser.add_argument_group("RNA options")
         duplex = parser.add_argument_group("Duplex Options")
 
         # Args for the wrapper, and then probably best to just have free form args for basecaller
@@ -91,6 +92,10 @@ def get_args(above_7310_flag, above_7412_flag):
         # barcode_dmux.add_argument("--min_score_barcode_mid", type=float, default=60.0,
         #                     help="Minimum score for mid barcodes to be detected")
         
+        # RNA
+        rna.add_argument("--U2T", action="store_true",
+                            help="Convert Uracil (U) to Thymine (T) in direct RNA output")
+
         # Duplex
         duplex.add_argument("--duplex", action="store_true",
                             help="Turn on duplex calling - channel based - See README for information")
@@ -183,6 +188,7 @@ def get_args(above_7310_flag, above_7412_flag):
         old_args = argparse.Namespace(
             duplex=False,
             single=False,
+            U2T=False,
             )
 
 

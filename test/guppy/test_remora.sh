@@ -60,14 +60,14 @@ test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_chr
 test -z $BIS && BIS=/data/slow5-testdata/hg2_prom_lsk114_chr22/chr22_bi.tsv
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
 test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
-test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_fast_prom.cfg
+test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_fast.cfg
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $REF && REF=/genome/hg38noAlt.fa
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
 test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
 test -z $SAMTOOLS && SAMTOOLS=samtools
 test -z $MINIMAP2 && MINIMAP2=minimap2
-test -z $COMPARE_METH && COMPARE_METH=/home/hasindu/hasindu2008.git/f5c/scripts/compare_methylation.py
+test -z $COMPARE_METH && COMPARE_METH=/install/scripts/compare_methylation.py
 
 #check if files exist
 test -e ${PATH_TO_GUPPY}/guppy_basecaller || die  "${PATH_TO_GUPPY}/guppy_basecaller not found"

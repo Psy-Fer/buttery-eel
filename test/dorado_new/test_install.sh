@@ -38,7 +38,7 @@ sed -i "s/${CURRENT_DORADO}/${GUPPY_VERSION}/" requirements.txt || die "sed fail
 sed -i "s/${DORADO_LIB}/ont-pybasecall-client-lib/" requirements.txt || die "sed failed"
 sed -i "s/${GUPPY_LIB}/#${GUPPY_LIB}/" requirements.txt || die "sed failed"
 
-test -z $EEL_PYTHON3 && EEL_PYTHON3=python3.9
+test -z $EEL_PYTHON3 && EEL_PYTHON3=python3
 rm -rf venv3
 ${EEL_PYTHON3} -m venv venv3 || die "venv failed"
 source venv3/bin/activate || die "venv activate failed"

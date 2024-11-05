@@ -161,8 +161,8 @@ echo ""
 echo "********************************************************************"
 
 echo "remora"
-export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
-export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_chr22/pod5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_chr22/PGXX22394_reads_chr22.blow5
 export MODEL=dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_fast.cfg
 test/guppy/test_remora.sh &> remora.log || die "test failed. See remora.log for details"
 echo ""
@@ -190,7 +190,7 @@ echo "R9.4.1 RNA - FAST model"
 export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
 export REFIDX=/genome/gencode.v40.transcripts.fa
 export PATH_TO_FAST5=/data/slow5-testdata/uhr_prom_rna002_subsubsample/fast5/
-export PATH_TO_BLOW5=/data/data/slow5-testdata/uhr_prom_rna002_subsubsample/PRPN119035_reads_20k.blow5
+export PATH_TO_BLOW5=/data/slow5-testdata/uhr_prom_rna002_subsubsample/PRPN119035_reads_20k.blow5
 export MODEL=rna_r9.4.1_70bps_fast.cfg
 test/guppy/test.sh &> rna.log || die "test failed. See rna.log for details"
 

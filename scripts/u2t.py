@@ -97,7 +97,7 @@ def get_header(infile):
     with open(infile, 'r') as f:
         for line in f:
             if line[0] == "@":
-                header.append(line)
+                header.append(line.strip("\n"))
     return header
 
 def read_sam(infile):

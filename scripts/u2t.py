@@ -120,7 +120,7 @@ def stream_sam():
     for line in sys.stdin:
         if not head:
             if line[0] == "@":
-                header.append(line)
+                header.append(line.strip("\n"))
                 continue
             else:
                 head = True

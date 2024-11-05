@@ -211,6 +211,8 @@ def main():
                     print(l)
         elif args.format == "sam":
             reads = stream_sam()
+            # get the header, as first output from generator
+            header = next(reads)
             #write header
             for l in header:
                 print(l)

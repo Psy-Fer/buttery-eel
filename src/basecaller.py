@@ -3,7 +3,7 @@ from io import StringIO
 import numpy as np
 import time
 from contextlib import contextmanager, redirect_stdout
-
+import re
 
 try:
     from pybasecall_client_lib.pyclient import PyBasecallClient as pclient
@@ -263,12 +263,7 @@ def get_reads(args, client, read_counter, sk, read_store):
                         bcalled_read["sequence"] = call['datasets']['sequence']
                         if args.U2T:
                             seq = []
-                            for i in bcalled_read["sequence"]:
-                                if i == "U":
-                                    seq.append("T")
-                                else:
-                                    seq.append(i)
-                            bcalled_read["sequence"] = "".join(seq)
+                            bcalled_read["sequence"] = re.sub("U", "T", bcalled_read["sequence"])
                         if args.duplex:
                             bcalled_read["duplex_parent"] = call['metadata']['is_duplex_parent']
                             bcalled_read["duplex_strand_1"] = call['metadata'].get('duplex_strand_1', None)
@@ -298,17 +293,9 @@ def get_reads(args, client, read_counter, sk, read_store):
                                 skipped_list.append([read_id, "stage-1", "Failed to get sam_record/alignment_sam_record"])
                                 continue
                             if len(bcalled_read["sam_record"]) > 0 and args.U2T:
-                                splitrec = bcalled_read["sam_record"].split()
-                                sam_seq = splitrec[9]
-                                brec = "\t".join(splitrec[:9])
-                                arec = "\t".join(splitrec[10:])
-                                seq = []
-                                for i in sam_seq:
-                                    if i == "U":
-                                        seq.append("T")
-                                    else:
-                                        seq.append(i)
-                                bcalled_read["sam_record"] = "\t".join([brec, "".join(seq), arec])
+                                splitrec = bcalled_read["sam_record"].split("\t")
+                                splitrec[9] = re.sub("U", "T", splitrec[9])
+                                bcalled_read["sam_record"] = "\t".join(splitrec)
                         if args.do_read_splitting and not args.above_7310:
                             bcalled_read["num_samples"] = None
                             bcalled_read["trimmed_samples"] = None

@@ -2,8 +2,7 @@
 
 import argparse
 import sys
-import numpy as np
-
+import re
 """
 James M. Ferguson (j.ferguson@garvan.org.au)
 Genomic Technologies
@@ -178,13 +177,7 @@ def main():
         reads = read_fastq(args.input)
         # process reads
         for read in reads:
-            seq = []
-            for b in read[1]:
-                if b == "U":
-                    seq.append("T")
-                else:
-                    seq.append(b)
-            read[1] = "".join(seq)
+            read[1] = re.sub("U", "T", read[1])
             for l in read:
                 print(l)
     
@@ -197,14 +190,8 @@ def main():
             print(l)
         # process sam
         for read in reads:
-            seq = []
             r = read.split("\t")
-            for b in r[9]:
-                if b == "U":
-                    seq.append("T")
-                else:
-                    seq.append(b)
-            r[9] = seq
+            r[9] = re.sub("U", "T", r[9])
             # write record
             print("\t".join(r))
     
@@ -219,13 +206,7 @@ def main():
             reads = stream_fastq()
             # process reads
             for read in reads:
-                seq = []
-                for b in read[1]:
-                    if b == "U":
-                        seq.append("T")
-                    else:
-                        seq.append(b)
-                read[3] = "".join(seq)
+                read[1] = re.sub("U", "T", read[1])
                 for l in read:
                     print(l)
         elif args.format == "sam":
@@ -235,14 +216,8 @@ def main():
                 print(l)
             # process sam
             for read in reads:
-                seq = []
                 r = read.split("\t")
-                for b in r[9]:
-                    if b == "U":
-                        seq.append("T")
-                    else:
-                        seq.append(b)
-                r[9] = seq
+                r[9] = re.sub("U", "T", r[9])
                 # write record
                 print("\t".join(r))
         else:

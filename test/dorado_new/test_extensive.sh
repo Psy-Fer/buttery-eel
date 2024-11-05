@@ -200,7 +200,7 @@ export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
 export REFIDX=/genome/gencode.v40.transcripts.fa
 export PATH_TO_FAST5=/data/slow5-testdata/uhr_prom_rna004_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/uhr_prom_rna004_subsubsample/PNXRXX240011_reads_20k.blow5
-export MODEL=rna_r9.4.1_70bps_fast.cfg
+export MODEL=rna_rp4_130bps_hac.cfg
 test/dorado_new/test.sh &> rna.log || die "test failed. See rna.log for details"
 
 echo "RNA004 RNA - rna_rp4_130bps_modbases_m6a_drach_sup.cfg"

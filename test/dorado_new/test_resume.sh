@@ -120,7 +120,7 @@ else
 fi
 cat eel.log
 
-echo "Merging reads_truncated.fastq and reads_resume.fastq to reads.fastq
+echo "Merging reads_truncated.fastq and reads_resume.fastq to reads.fastq"
 cat ${EEL_OUT_TMP2}/reads_truncated.fastq ${EEL_OUT_TMP2}/reads_resume.fastq > ${EEL_OUT_TMP2}/reads.fastq
 
 ${PATH_TO_IDENTITY} ${REFIDX} ${EEL_OUT_TMP2}/reads.fastq | cut -f 2-> ${EEL_OUT_TMP2}/reads.identity

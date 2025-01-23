@@ -261,7 +261,7 @@ def get_reads(args, client, read_counter, sk, read_store):
                         else:
                             bcalled_read["read_id"] = read_id
                         bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
-                        bcalled_read["float_read_qscore"] = float(call['metadata']['mean_qscore'])
+                        bcalled_read["float_read_qscore"] = round(float(call['metadata']['mean_qscore']), 3)
                         if args.call_mods:
                             bcalled_read["header"] = "@{} parent_read_id={} model_version_id={} modbase_model_version_id={} mean_qscore={}".format(bcalled_read["read_id"], bcalled_read["parent_read_id"], call['metadata'].get('model_version_id', model_id), call['metadata'].get('modbase_model_version_id', model_id), bcalled_read["float_read_qscore"])
                         else:

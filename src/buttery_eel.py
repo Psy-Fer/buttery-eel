@@ -306,10 +306,25 @@ def main():
                 processes.append(basecall_worker)
 
         reader.join()
+        if reader.exitcode != 0:
+            print("ERROR: Reader process encountered an error. exitcode: ", reader.exitcode)
+            for child in mp.active_children():
+                child.terminate()
+            sys.exit(1)
         for p in processes:
             p.join()
+            if p.exitcode != 0:
+                print("ERROR: Worker client encountered an error. exitcode: ", p.exitcode)
+                for child in mp.active_children():
+                    child.terminate()
+                sys.exit(1)
         result_queue.put(None)
         out_writer.join()
+        if out_writer.exitcode != 0:
+            print("ERROR: Writer process encountered an error. exitcode: ", out_writer.exitcode)
+            for child in mp.active_children():
+                child.terminate()
+            sys.exit(1)
 
         if skip_queue.qsize() > 0:
             # print("1")

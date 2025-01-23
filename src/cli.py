@@ -7,7 +7,7 @@ from ._version import __version__
 
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
-        sys.stderr.write('error: %s\n' % message)
+        sys.stderr.write('ERROR: %s\n' % message)
         self.print_help()
         sys.exit(2)
 
@@ -55,6 +55,8 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="basecaller log folder path")
         run_options.add_argument("--moves_out", action="store_true",
                             help="output move table (sam format only)")
+        run_options.add_argument("--max_batch_time", type=int, default=1200,
+                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
 
         # read splitting
         # read_splitting.add_argument("--do_read_splitting", action="store_true",
@@ -143,6 +145,8 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="basecaller log folder path")
         run_options.add_argument("--moves_out", action="store_true",
                             help="output move table (sam format only)")
+        run_options.add_argument("--max_batch_time", type=int, default=1200,
+                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
 
         # read splitting
         read_splitting.add_argument("--do_read_splitting", action="store_true",

@@ -57,6 +57,9 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="output move table (sam format only)")
         run_options.add_argument("--max_batch_time", type=int, default=1200,
                             help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
+        run_options.add_argument("--resume", default=None,
+                            help="Resume a sequencing run. fastq or sam input.")
+
 
         # read splitting
         # read_splitting.add_argument("--do_read_splitting", action="store_true",
@@ -147,6 +150,8 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="output move table (sam format only)")
         run_options.add_argument("--max_batch_time", type=int, default=1200,
                             help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
+        run_options.add_argument("--resume", default=None,
+                            help="Resume a sequencing run. fastq or sam input.")
 
         # read splitting
         read_splitting.add_argument("--do_read_splitting", action="store_true",
@@ -218,6 +223,7 @@ def get_args(above_7310_flag, above_7412_flag):
     extra_args = argparse.Namespace(
         above_7310=above_7310_flag, # is the version >= 7.3.* where the name and inputs change?
         above_7412=above_7412_flag,
+        resume_run=False,
     )
 
     # now merge them. This will all get printed into the arg print below which also helps with troubleshooting

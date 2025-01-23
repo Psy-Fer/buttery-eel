@@ -184,8 +184,11 @@ def main():
         # region file handler
         print("==========================================================================\n  Files\n==========================================================================")
         print("Reading from: {}".format(args.input))
-
+        
         print("Output: {}".format(args.output))
+        if not os.access(args.output, os.W_OK):
+            print("ERROR: Cannot write output, lack of permissions:", args.output)
+            sys.exit(1)
         if args.output.split(".")[-1] not in ["fastq", "sam"]:
             print("ERROR: output file is not a fastq or sam file")
             arg_error(sys.stderr)

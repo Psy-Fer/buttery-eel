@@ -108,11 +108,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id):
     if args.seq_sum:
         try:
             if "/" in args.output:
-                if os.access("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), os.W_OK):
-                    SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
-                else:
-                    print("ERROR: Permission denied")
-                    sys.exit(1)
+                SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
                 print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
             else:
                 SUMMARY = open("./sequencing_summary.txt", "w")

@@ -132,5 +132,5 @@ echo "Comparing results"
 diff ${EEL_OUT_TMP}/reads.identity ${EEL_OUT_TMP2}/reads.identity || die "Results differ"
 
 echo "Test passed"
-cat ${EEL_OUT_TMP}/reads_tmp.identity
+cat ${EEL_OUT_TMP}/reads.identity
 cat ${EEL_OUT_TMP2}/reads.identity

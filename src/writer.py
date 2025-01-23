@@ -106,12 +106,17 @@ def write_worker(args, q, files, SAM_OUT, model_version_id):
         pr.enable()
     
     if args.seq_sum:
-        if "/" in args.output:
-            SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
-            print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
-        else:
-            SUMMARY = open("./sequencing_summary.txt", "w")
-            print("Writing summary file to: ./sequencing_summary.txt")
+        try:
+            if "/" in args.output:
+                SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
+            else:
+                SUMMARY = open("./sequencing_summary.txt", "w")
+                print("Writing summary file to: ./sequencing_summary.txt")
+        except Exception as error:
+            # handle the exception
+            print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
+            sys.exit(1)
 
         SUMMARY_HEADER = "\t".join(["filename_out", "filename_slow5", "parent_read_id",
                                     "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
@@ -124,38 +129,48 @@ def write_worker(args, q, files, SAM_OUT, model_version_id):
     
     if args.barcode_kits:
         bc_files = {}
-        if "/" in args.output:
-            BARCODE_SUMMARY = open("{}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
-            print("Writing summary file to: {}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])))
-        else:
-            BARCODE_SUMMARY = open("./barcoding_summary.txt", "w")
-            print("Writing summary file to: ./barcoding_summary.txt")
+        try:
+            if "/" in args.output:
+                BARCODE_SUMMARY = open("{}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                print("Writing summary file to: {}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])))
+            else:
+                BARCODE_SUMMARY = open("./barcoding_summary.txt", "w")
+                print("Writing summary file to: ./barcoding_summary.txt")
+        except Exception as error:
+            # handle the exception
+            print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
+            sys.exit(1)
         BARCODE_SUMMARY_HEADER = "\t".join(["parent_read_id", "read_id", "barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
                                             "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
                                             "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
                                             "barcode_rear_end_index"])
         write_summary(BARCODE_SUMMARY, BARCODE_SUMMARY_HEADER)
 
+    try:
+        if SAM_OUT:
+            if args.qscore:
+                PASS = open(files["pass"], 'w') 
+                FAIL = open(files["fail"], 'w')
+                sam_header(PASS, model_version_id)
+                sam_header(FAIL, model_version_id)
+                OUT = {"pass": PASS, "fail": FAIL}
+            else:
+                single = open(files["single"], 'w')
+                sam_header(single, model_version_id)
+                OUT = {"single": single}
+        else:
+            if args.qscore:
+                PASS = open(files["pass"], 'w') 
+                FAIL = open(files["fail"], 'w')
+                OUT = {"pass": PASS, "fail": FAIL}
+            else:
+                single = open(files["single"], 'w')
+                OUT = {"single": single}
+    except Exception as error:
+        # handle the exception
+        print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
+        sys.exit(1)
 
-    if SAM_OUT:
-        if args.qscore:
-            PASS = open(files["pass"], 'w') 
-            FAIL = open(files["fail"], 'w')
-            sam_header(PASS, model_version_id)
-            sam_header(FAIL, model_version_id)
-            OUT = {"pass": PASS, "fail": FAIL}
-        else:
-            single = open(files["single"], 'w')
-            sam_header(single, model_version_id)
-            OUT = {"single": single}
-    else:
-        if args.qscore:
-            PASS = open(files["pass"], 'w') 
-            FAIL = open(files["fail"], 'w')
-            OUT = {"pass": PASS, "fail": FAIL}
-        else:
-            single = open(files["single"], 'w')
-            OUT = {"single": single}
     while True:
         bcalled_list = []
         bcalled_list = q.get()
@@ -199,8 +214,12 @@ def write_worker(args, q, files, SAM_OUT, model_version_id):
                         bcod_file = ".".join(name + ["pass"] + [barcode] + ext)
                     elif fkey == "fail":
                         bcod_file = ".".join(name + ["fail"] + [barcode] + ext)
-
-                    bc_files[barcode_name] = open(bcod_file, 'w')
+                    try:
+                        bc_files[barcode_name] = open(bcod_file, 'w')
+                    except Exception as error:
+                        # handle the exception
+                        print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
+                        sys.exit(1)
                     if SAM_OUT:
                         bc_writer = bc_files[barcode_name]
                         sam_header(bc_writer, model_version_id)

@@ -115,7 +115,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id):
                 print("Writing summary file to: ./sequencing_summary.txt")
         except Exception as error:
             # handle the exception
-            print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
+            print("ERROR: An exception occurred in file opening:", type(error).__name__, "-", error)
             sys.exit(1)
 
         SUMMARY_HEADER = "\t".join(["filename_out", "filename_slow5", "parent_read_id",

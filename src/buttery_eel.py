@@ -6,6 +6,7 @@ import sys
 import os
 import multiprocessing as mp
 import platform
+import time
 
 try:
     import pybasecall_client_lib
@@ -186,9 +187,6 @@ def main():
         print("Reading from: {}".format(args.input))
         
         print("Output: {}".format(args.output))
-        if not os.access(args.output, os.W_OK):
-            print("ERROR: Cannot write output, lack of permissions:", args.output)
-            sys.exit(1)
         if args.output.split(".")[-1] not in ["fastq", "sam"]:
             print("ERROR: output file is not a fastq or sam file")
             arg_error(sys.stderr)
@@ -320,6 +318,48 @@ def main():
                 basecall_worker.start()
                 processes.append(basecall_worker)
 
+
+        # Anakin, the Process supervisor
+        # Monitors all procs for a non-zero exit code. If found, it termintates all the children.
+        # If all the exitcodes are 0, it breaks the while loop and continues to join() calls.
+        while True:
+            # print("reader exit code:", reader.exitcode)
+            if reader.exitcode is not None:
+                if reader.exitcode != 0:
+                    print("ERROR: Reader process encountered an error. exitcode: ", reader.exitcode)
+                    for child in mp.active_children():
+                        child.terminate()
+                    sys.exit(1)
+            # print("writer exit code:", out_writer.exitcode)
+            if out_writer.exitcode is not None:
+                if out_writer.exitcode != 0:
+                    print("ERROR: Writer process encountered an error. exitcode: ", out_writer.exitcode)
+                    for child in mp.active_children():
+                        child.terminate()
+                    sys.exit(1)
+            for p in processes:
+                # print("proc exit code:", p.exitcode)
+                if p.exitcode is not None:
+                    if p.exitcode != 0:
+                        print("ERROR: Worker client encountered an error. exitcode: ", p.exitcode)
+                        for child in mp.active_children():
+                            child.terminate()
+                        sys.exit(1)
+            if reader.exitcode == 0:
+                p_sum = 0
+                for p in processes:
+                    if p.exitcode != 0:
+                        p_sum += 1
+                if p_sum == 0:
+                    result_queue.put(None)
+                    time.sleep(3)
+                    if out_writer.exitcode == 0:
+                        print("\n\nProc supervisor: all processes completed without detected error")
+                        break
+            time.sleep(5)
+
+
+        # Join() calls for all procs
         reader.join()
         if reader.exitcode != 0:
             print("ERROR: Reader process encountered an error. exitcode: ", reader.exitcode)

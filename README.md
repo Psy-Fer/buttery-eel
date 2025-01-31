@@ -84,7 +84,7 @@ However there are some things to note:
 - Use a single blow5 file rather than many smaller ones.
 - The basecalling server stores all the reads for 10 channels, then on the 11th, it releases the first. Buttery-eel sends 1 channel per client connection, controlled by `--procs`, and in order to force the basecaller to release the data, it sends 10 "fake" reads to the basecaller with channel numbers >9000. This is mostly due to the poor implementation of duplex in the ONT library, so I can't really do much about that.
 - You should write duplex data out using `.sam`. This will mean you get the duplex tags, dx:i:N where N=0 is simplex, N=-1 is a parent of a duplex read, and N=1 is a duplex read.
-- There is a bug in the ONT library, where if a read is split, and two reads from that split read are parents of a duplex read, one of those parent reads won't be flagged with dx:i:-1, but dx:i:0 instead. I have told ONT and they said they will fix it (Bug present in `ont-pybasecall-client-lib v7.4.12`)
+- There is a bug in the ONT library, where if a read is split, and two reads from that split read are parents of a duplex read, one of those parent reads won't be flagged with dx:i:-1, but dx:i:0 instead. I have told ONT and they said they will fix it (Bug present in `ont-pybasecall-client-lib v7.4.12`, now fixed in `ont-pybasecall-client-lib v7.6.8`)
 - When duplex first starts, it sequentially reads the whole blow5 file to create the channel groups. This can take a while, so please be patient.
 
 I wouldn't recommend using duplex just yet because of the issues and poor performance.
@@ -241,9 +241,13 @@ Barcode demultiplexing Options:
 
 ## Aligning uSAM output and getting sorted bam using -y in minimap2
 
-    samtools fastq -TMM,ML test.mod.sam | minimap2 -ax map-ont -y ref.fa - | samtools view -Sb - | samtools sort - > test.aln.mod.bam
+    samtools fastq -TMM,ML test.mod.sam | minimap2 -ax map-ont -y -Y ref.fa - | samtools sort - > test.aln.mod.bam
 
 If you also wish to keep the quality scores in the unofficial qs tags or if mapping a regular unmapped sam the -T argument can be used in conjunction with minimap2 -y for example: `-TMM,ML,qs` or `-Tqs`. You can also get all sam tags with `-T'*'` but you need samtools of v1.16 or higher.
+
+#### samtools v1.16 and higher
+
+    samtools fastq -T '*' test.mod.sam | minimap2 -ax map-ont -y -Y ref.fa - | samtools sort - > test.aln.mod.bam
 
 
 # Shutting down server

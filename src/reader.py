@@ -116,7 +116,7 @@ def _get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, hea
     if len(batch) > 0:
         yield batch
 
-def read_worker(args, iq):
+def read_worker(args, iq, total_samples):
     '''
     single threaded worker to read slow5 (with multithreading)
     '''
@@ -168,10 +168,20 @@ def read_worker(args, iq):
                     for batch in chain(batches):
                         # print(iq.qsize())
                         if iq.qsize() < max_limit:
+                            batch_samples = 0
+                            for rd in batch:
+                                batch_samples += rd['len_raw_signal']
+                            with total_samples.get_lock():
+                                total_samples.value += batch_samples
                             iq.put(batch)
                         else:
                             while iq.qsize() >= max_limit:
                                 time.sleep(0.01)
+                            batch_samples = 0
+                            for rd in batch:
+                                batch_samples += rd['len_raw_signal']
+                            with total_samples.get_lock():
+                                total_samples.value += batch_samples
                             iq.put(batch)
         
     else:
@@ -190,10 +200,20 @@ def read_worker(args, iq):
         for batch in chain(batches):
             # print(iq.qsize())
             if iq.qsize() < max_limit:
+                batch_samples = 0
+                for rd in batch:
+                    batch_samples += rd['len_raw_signal']
+                with total_samples.get_lock():
+                    total_samples.value += batch_samples
                 iq.put(batch)
             else:
                 while iq.qsize() >= max_limit:
                     time.sleep(0.01)
+                batch_samples = 0
+                for rd in batch:
+                    batch_samples += rd['len_raw_signal']
+                with total_samples.get_lock():
+                    total_samples.value += batch_samples
                 iq.put(batch)
     for _ in range(args.procs):
         iq.put(None)

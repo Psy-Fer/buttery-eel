@@ -265,6 +265,10 @@ def main():
             input_queue = mp.JoinableQueue()
             result_queue = mp.JoinableQueue()
             skip_queue = mp.JoinableQueue()
+        
+        # track total samples for samples/s calculation
+        total_samples = mp.Value('i', 0)
+        sample_time_start = time.perf_counter()
 
         processes = []
 
@@ -309,7 +313,7 @@ def main():
                     basecall_worker.start()
                     processes.append(basecall_worker)
         else:
-            reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
+            reader = mp.Process(target=read_worker, args=(args, input_queue, total_samples), name='read_worker')
             reader.start()
             out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id), name='write_worker')
             out_writer.start()
@@ -318,6 +322,7 @@ def main():
                 basecall_worker.start()
                 processes.append(basecall_worker)
 
+        sample_time_start = time.perf_counter()
 
         # Anakin, the Process supervisor
         # Monitors all procs for a non-zero exit code. If found, it termintates all the children.
@@ -358,6 +363,18 @@ def main():
                         break
             time.sleep(5)
 
+        sample_time_end = time.perf_counter()
+        final_total_samples = 0
+        with total_samples.get_lock():
+            final_total_samples = total_samples.value
+
+        total_time = sample_time_end - sample_time_start
+        samples_per_sec = 0
+        if final_total_samples > 0:
+            samples_per_sec = float(final_total_samples) / float(total_time)
+        
+        #Basecalled @ Samples/s: 3.450401e+07
+        print("\nBasecalled @ Samples/s:", "{0:.6e}".format(samples_per_sec))
 
         # Join() calls for all procs
         reader.join()
@@ -373,13 +390,14 @@ def main():
                 for child in mp.active_children():
                     child.terminate()
                 sys.exit(1)
-        result_queue.put(None)
+        # result_queue.put(None)
         out_writer.join()
         if out_writer.exitcode != 0:
             print("ERROR: Writer process encountered an error. exitcode: ", out_writer.exitcode)
             for child in mp.active_children():
                 child.terminate()
             sys.exit(1)
+        
 
         if skip_queue.qsize() > 0:
             # print("1")
@@ -409,7 +427,6 @@ def main():
         
         print("\n")
         print("Basecalling complete!\n")
-
 
         # ==========================================================================
         # Finish up, close files, disconnect client and terminate server

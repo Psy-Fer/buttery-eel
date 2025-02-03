@@ -100,6 +100,10 @@ def get_args(above_7310_flag, above_7412_flag):
         # RNA
         rna.add_argument("--U2T", action="store_true",
                             help="Convert Uracil (U) to Thymine (T) in direct RNA output")
+        rna.add_argument("--estimate_poly_a", action="store_true",
+                            help="Perform polyA/T tail length estimation")
+        rna.add_argument("--poly_a_config",
+                            help="Filename of a custom polyA/T configuration to use for estimation.")
 
         # Duplex
         duplex.add_argument("--duplex", action="store_true",

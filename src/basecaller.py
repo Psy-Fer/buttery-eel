@@ -105,6 +105,10 @@ def start_guppy_server_and_client(args, server_args):
             params["min_score_barcode_mid"] = args.min_score_barcode_mid
             # docs are a bit wonky on this, enable_trim_barcodes vs barcode_trimming_enabled
             params["detect_mid_strand_barcodes"] = args.detect_mid_strand_barcodes
+    if args.estimate_poly_a:
+        params["estimate_poly_a"] = True
+        if args.poly_a_config is not None:
+            params["poly_a_config"] = args.poly_a_config
     
     if args.duplex:
         if args.above_7412:
@@ -270,6 +274,8 @@ def get_reads(args, client, read_counter, sk, read_store):
                         if args.U2T:
                             seq = []
                             bcalled_read["sequence"] = re.sub("U", "T", bcalled_read["sequence"])
+                        if args.estimate_poly_a:
+                            bcalled_read["poly_tail_length"] = call['metadata'].get('poly_tail_length', 0)
                         if args.duplex:
                             bcalled_read["duplex_parent"] = call['metadata']['is_duplex_parent']
                             bcalled_read["duplex_strand_1"] = call['metadata'].get('duplex_strand_1', None)

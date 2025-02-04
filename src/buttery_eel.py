@@ -141,8 +141,7 @@ def main():
             sys.exit(1)
         else:
             args.resume_run = True
-
-
+    
     # ==========================================================================
     # region Start guppy_basecall_server
     # ==========================================================================
@@ -168,10 +167,12 @@ def main():
         # print("Client Basecalling config:")
         # print(client.get_basecalling_config())
         bc_config = client.get_basecalling_config()[0]
-        # print(bc_config)
+        print(bc_config)
         # print("model: {}".format(bc_config["model_version_id"]))
         model_version_id = bc_config["model_version_id"]
+        model_config_name = bc_config["config_name"]
         # print("Server Basecalling config:")
+        # print("get_server_internal_state():", client.get_server_internal_state(address, 10))
         # print(client.get_server_information("127.0.0.1:5000", 10))
         # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_protocol_version())
@@ -288,7 +289,7 @@ def main():
                 duplex_queue = mp.JoinableQueue()
                 reader = mp.Process(target=duplex_read_worker_single, args=(args, duplex_queue, duplex_pre_queue), name='duplex_read_worker_single')
                 reader.start()
-                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id), name='write_worker')
+                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id, model_config_name), name='write_worker')
                 out_writer.start()
                 # set up each worker to have a unique queue, so it only processes 1 channel at a time
                 basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queue, result_queue, skip_queue, address, config, params, 0), daemon=True, name='basecall_worker_{}'.format(0))
@@ -305,7 +306,7 @@ def main():
                 duplex_queues = {name: mp.JoinableQueue() for name in queue_names}
                 reader = mp.Process(target=duplex_read_worker, args=(args, duplex_queues, duplex_pre_queue), name='duplex_read_worker')
                 reader.start()
-                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id), name='write_worker')
+                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id, model_config_name), name='write_worker')
                 out_writer.start()
                 # set up each worker to have a unique queue, so it only processes 1 channel at a time
                 for name in queue_names:
@@ -315,7 +316,7 @@ def main():
         else:
             reader = mp.Process(target=read_worker, args=(args, input_queue, total_samples), name='read_worker')
             reader.start()
-            out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id), name='write_worker')
+            out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id, model_config_name), name='write_worker')
             out_writer.start()
             for i in range(args.procs):
                 basecall_worker = mp.Process(target=basecaller_proc, args=(args, input_queue, result_queue, skip_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))

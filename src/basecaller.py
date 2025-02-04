@@ -34,6 +34,11 @@ def start_guppy_server_and_client(args, server_args):
     basecaller_bin = args.basecaller_bin
     found = False
     gotten = False
+    model_path = False
+    model_index = 0
+    mod_path = False
+    mod_index = 0
+    counter = 0
     tmp_args = []
     for arg in server_args:
         if not gotten:
@@ -50,6 +55,25 @@ def start_guppy_server_and_client(args, server_args):
             print("\n")
             continue
         tmp_args.append(arg)
+
+        if arg == "--dorado_model_path":
+            model_path = True
+            model_index = counter + 1
+            if args.call_mods:
+                if "--dorado_modbase_models" not in server_args:
+                    print("ERROR: --call_mods argument given with use of --dorado_model_path, but no --dorado_modbase_models path given")
+                    sys.exit(1)
+        if arg == "--dorado_modbase_models":
+            mod_path = True
+            mod_index = counter + 1
+            if not args.call_mods:
+                print("ERROR: ---dorado_modbase_models argument given, but no --call_mods arg given")
+                sys.exit(1)
+            
+        if arg == "--dorado_duplex_model_path":
+            print("ERROR: --dorado_duplex_model_path argument given. This is not yet implemented due to the deprication of duplex. Please let us know if you require this on GitHub")
+            sys.exit(1)
+        counter += 1
     
     if basecaller_bin is None:
         print("-g/--basecaller_bin/--guppy_bin is a required argument")
@@ -58,11 +82,14 @@ def start_guppy_server_and_client(args, server_args):
     server_args = tmp_args
 
     server_args.extend(["--log_path", args.log,
-                        "--config", args.config,
                         # "--port", args.port,
                         # "--max_queued_reads", args.max_queued_reads,
                         # "--chunk_size", args.chunk_size,
                         ])
+    # if no model path given, add --config back in
+    if not model_path:
+        server_args.extend(["--config", args.config])
+    
     # the high priority queue uses a different batch size which alters the basecalls when called with dorado
     # leaving this on default should set it to medium and give 'correct' results
     # funny enough, it will call R9.4.1 data at higher accuracy, and the opposite impact on R10.4.1
@@ -127,7 +154,26 @@ def start_guppy_server_and_client(args, server_args):
         address = "{}".format(port)
     else:
         address = "localhost:{}".format(port)
-    client = pclient(address=address, config=args.config)
+    if model_path:
+        # create the model set <simplex_model>|<mod_models>|<duplex_model> (must include the ||)
+        simplex_model = server_args[model_index].rstrip("/").split("/")[-1]
+        mod_models = ""
+        # takes a single argument, but can be a comma sep list
+        # it takes the simplex model, and appends the mod models to it
+        # so if simplex is dna_r10.4.1_e8.2_400bps_hac@v4.3.0
+        # and mod_path is 5mC_5hmC@v1,6mA@v2
+        # dna_r10.4.1_e8.2_400bps_hac@v4.3.0_5mC_5hmC@v1,dna_r10.4.1_e8.2_400bps_hac@v4.3.0_6mA@v2
+        if mod_path:
+            server_args
+            tmp_mods = server_args[mod_index].split(",")
+            mod_models = ",".join(["{}_{}".format(simplex_model, i) for i in tmp_mods])
+        # excluding this given duplex is dead
+        duplex_model = ""
+        model_set = "{}|{}|{}".format(simplex_model, mod_models, duplex_model)
+        client = pclient(address=address, config=model_set)
+    else:
+        client = pclient(address=address, config=args.config)
+
 
 
     print("Setting params...")
@@ -135,7 +181,10 @@ def start_guppy_server_and_client(args, server_args):
     print("Connecting...")
     try:
         with client:
-            yield [client, address, args.config, params]
+            if model_path:
+                yield [client, address, model_set, params]
+            else:
+                yield [client, address, args.config, params]
     finally:
         server.terminate()
 
@@ -229,7 +278,7 @@ def get_reads(args, client, read_counter, sk, read_store):
             time.sleep(client.throttle)
             continue
         else:
-            model_id = ".".join(args.config.split(".")[:-1])
+            model_id = client.get_basecalling_config()[0]["model_version_id"]
             for calls in bcalled:
                 done += 1
                 if not isinstance(calls, list):

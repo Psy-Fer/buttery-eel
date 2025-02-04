@@ -25,7 +25,7 @@ def write_summary(summary, data):
     """
     summary.write("{}\n".format(data))
 
-def sam_header(OUT, model_version_id, sep='\t'):
+def sam_header(OUT, model_version_id, model_config_name, sep='\t'):
     """
     Format a string sam header.
     This is taken from Bonito by Chris Seymour at ONT.
@@ -90,14 +90,14 @@ def sam_header(OUT, model_version_id, sep='\t'):
         'PN:buttery-eel',
         'VN:%s' % __version__,
         'CL:buttery-eel %s' % ' '.join(sys.argv[1:]),
-        'DS:ont basecaller wrapper basecall_model={}'.format(model_version_id),
+        'DS:ont basecaller wrapper model_version_id={} model_config_name={}'.format(model_version_id, model_config_name),
     ])
     OUT.write("{}\n".format(HD))
     OUT.write("{}\n".format(PG1))
     OUT.write("{}\n".format(PG2))
 
 
-def write_worker(args, q, files, SAM_OUT, model_version_id):
+def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
     '''
     single threaded worker to process results queue
     '''
@@ -151,12 +151,12 @@ def write_worker(args, q, files, SAM_OUT, model_version_id):
             if args.qscore:
                 PASS = open(files["pass"], 'w') 
                 FAIL = open(files["fail"], 'w')
-                sam_header(PASS, model_version_id)
-                sam_header(FAIL, model_version_id)
+                sam_header(PASS, model_version_id, model_config_name)
+                sam_header(FAIL, model_version_id, model_config_name)
                 OUT = {"pass": PASS, "fail": FAIL}
             else:
                 single = open(files["single"], 'w')
-                sam_header(single, model_version_id)
+                sam_header(single, model_version_id, model_config_name)
                 OUT = {"single": single}
         else:
             if args.qscore:
@@ -222,7 +222,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id):
                         sys.exit(1)
                     if SAM_OUT:
                         bc_writer = bc_files[barcode_name]
-                        sam_header(bc_writer, model_version_id)
+                        sam_header(bc_writer, model_version_id, model_config_name)
 
                 # write the barcode split sam/fastq
                 bc_writer = bc_files[barcode_name]

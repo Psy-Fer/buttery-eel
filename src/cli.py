@@ -7,12 +7,12 @@ from ._version import __version__
 
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
-        sys.stderr.write('error: %s\n' % message)
+        sys.stderr.write('ERROR: %s\n' % message)
         self.print_help()
         sys.exit(2)
 
 
-def get_args(above_7310_flag, above_7412_flag):
+def get_args(above_7310_flag, above_7412_flag, above_768_flag):
 
     VERSION = __version__
     parser = MyParser(description="buttery-eel - wrapping ONT basecallers (guppy/dorado) for SLOW5 basecalling",
@@ -35,7 +35,7 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="output .fastq or unaligned .sam file to write")
         run_options.add_argument("-g", "--basecaller_bin", type=Path,
                             help="path to basecaller bin folder, eg: ont-dorado-server/bin")
-        run_options.add_argument("--config", default="dna_r10.4.1_e8.2_400bps_5khz_hac.cfg", required=True,
+        run_options.add_argument("--config", default="dna_r10.4.1_e8.2_400bps_5khz_hac.cfg",
                             help="basecalling model config")
         run_options.add_argument("--call_mods", action="store_true",
                             help="output MM/ML tags for methylation - will output sam - use with appropriate mod config")
@@ -55,6 +55,11 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="basecaller log folder path")
         run_options.add_argument("--moves_out", action="store_true",
                             help="output move table (sam format only)")
+        run_options.add_argument("--max_batch_time", type=int, default=1200,
+                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
+        run_options.add_argument("--resume", default=None,
+                            help="Resume a sequencing run. fastq or sam input.")
+
 
         # read splitting
         # read_splitting.add_argument("--do_read_splitting", action="store_true",
@@ -95,6 +100,11 @@ def get_args(above_7310_flag, above_7412_flag):
         # RNA
         rna.add_argument("--U2T", action="store_true",
                             help="Convert Uracil (U) to Thymine (T) in direct RNA output")
+        if above_768_flag:
+            rna.add_argument("--estimate_poly_a", action="store_true",
+                                help="Perform polyA/T tail length estimation")
+            rna.add_argument("--poly_a_config",
+                                help="Filename of a custom polyA/T configuration to use for estimation.")
 
         # Duplex
         duplex.add_argument("--duplex", action="store_true",
@@ -143,6 +153,10 @@ def get_args(above_7310_flag, above_7412_flag):
                             help="basecaller log folder path")
         run_options.add_argument("--moves_out", action="store_true",
                             help="output move table (sam format only)")
+        run_options.add_argument("--max_batch_time", type=int, default=1200,
+                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
+        run_options.add_argument("--resume", default=None,
+                            help="Resume a sequencing run. fastq or sam input.")
 
         # read splitting
         read_splitting.add_argument("--do_read_splitting", action="store_true",
@@ -210,10 +224,17 @@ def get_args(above_7310_flag, above_7412_flag):
     # now merge them. This will all get printed into the arg print below which also helps with troubleshooting
     args = argparse.Namespace(**vars(args), **vars(old_args))
 
+    if "--dorado_model_path" in other_server_args:
+        dorado_model_path_flag = True
+    else:
+        dorado_model_path_flag = False
     # add super sneaky hidden flags the user can't interact with but makes global sharing easier
     extra_args = argparse.Namespace(
         above_7310=above_7310_flag, # is the version >= 7.3.* where the name and inputs change?
         above_7412=above_7412_flag,
+        above_768=above_768_flag,
+        resume_run=False,
+        dorado_model_path_flag=dorado_model_path_flag,
     )
 
     # now merge them. This will all get printed into the arg print below which also helps with troubleshooting

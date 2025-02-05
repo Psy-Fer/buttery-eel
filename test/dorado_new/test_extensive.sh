@@ -56,6 +56,14 @@ test/dorado_new/test.sh &> r9_dna_fast.log || die "test failed. see r9_dna_fast.
 echo ""
 echo "********************************************************************"
 
+echo "R10.4.1 DNA - FAST model - 20k reads - resume"
+export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
+export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
+export MODEL=dna_r10.4.1_e8.2_400bps_fast.cfg
+test/dorado_new/test_resume.sh &> r10_resume.log || die "test failed. see r10_resume.log for details"
+echo ""
+echo "********************************************************************"
+
 echo "R10.4.1 DNA - HAC model - 20k reads - split qscore inbuilt"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/fast5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
@@ -207,4 +215,3 @@ echo "RNA004 RNA - rna_rp4_130bps_modbases_m6a_drach_sup.cfg"
 echo "Not yet implemented :("
 echo ""
 echo "********************************************************************"
-

@@ -6,6 +6,7 @@ import sys
 import os
 import multiprocessing as mp
 import platform
+import time
 
 try:
     import pybasecall_client_lib
@@ -75,17 +76,21 @@ def main():
     # get version to set secret flags
     above_7310_flag = False
     above_7412_flag = False
+    above_768_flag = False
     try:
         major, minor, patch = [int(i) for i in pybasecall_client_lib.__version__.split(".")]
     except:
         major, minor, patch = [int(i) for i in pyguppy_client_lib.__version__.split(".")]
-    if major >= 7 and minor >= 3:
-        above_7310_flag = True
-    if major >= 7 and minor >= 4:
-        above_7412_flag = True
+    if major >= 7:
+        if minor >= 3:
+            above_7310_flag = True
+        if minor >= 4:
+            above_7412_flag = True
+        if minor >= 6:
+            above_768_flag = True
 
     # get args from cli
-    args, other_server_args, arg_error = get_args(above_7310_flag, above_7412_flag)
+    args, other_server_args, arg_error = get_args(above_7310_flag, above_7412_flag, above_768_flag)
 
     if len(sys.argv) == 1:
         arg_error(sys.stderr)
@@ -129,6 +134,17 @@ def main():
             print()
             sys.exit(1)
 
+    if args.resume is not None:
+        if args.resume.split(".")[-1] not in ["fastq", "sam"]:
+            print("ERROR: resume file {} is not a fastq or sam file".format(args.resume))
+            arg_error(sys.stderr)
+            sys.exit(1)
+        elif not os.path.isfile(args.resume):
+            print("ERROR: resume file {} is does not exist".format(args.resume))
+            arg_error(sys.stderr)
+            sys.exit(1)
+        else:
+            args.resume_run = True
 
     # ==========================================================================
     # region Start guppy_basecall_server
@@ -155,10 +171,12 @@ def main():
         # print("Client Basecalling config:")
         # print(client.get_basecalling_config())
         bc_config = client.get_basecalling_config()[0]
-        # print(bc_config)
+        print(bc_config)
         # print("model: {}".format(bc_config["model_version_id"]))
         model_version_id = bc_config["model_version_id"]
+        model_config_name = bc_config["config_name"]
         # print("Server Basecalling config:")
+        # print("get_server_internal_state():", client.get_server_internal_state(address, 10))
         # print(client.get_server_information("127.0.0.1:5000", 10))
         # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_protocol_version())
@@ -172,10 +190,10 @@ def main():
         # region file handler
         print("==========================================================================\n  Files\n==========================================================================")
         print("Reading from: {}".format(args.input))
-
+        
         print("Output: {}".format(args.output))
         if args.output.split(".")[-1] not in ["fastq", "sam"]:
-            print("output file is not a fastq or sam file")
+            print("ERROR: output file is not a fastq or sam file")
             arg_error(sys.stderr)
             sys.exit(1)
 
@@ -252,6 +270,10 @@ def main():
             input_queue = mp.JoinableQueue()
             result_queue = mp.JoinableQueue()
             skip_queue = mp.JoinableQueue()
+        
+        # track total samples for samples/s calculation
+        total_samples = mp.Value('i', 0)
+        sample_time_start = time.perf_counter()
 
         processes = []
 
@@ -271,7 +293,7 @@ def main():
                 duplex_queue = mp.JoinableQueue()
                 reader = mp.Process(target=duplex_read_worker_single, args=(args, duplex_queue, duplex_pre_queue), name='duplex_read_worker_single')
                 reader.start()
-                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id), name='write_worker')
+                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id, model_config_name), name='write_worker')
                 out_writer.start()
                 # set up each worker to have a unique queue, so it only processes 1 channel at a time
                 basecall_worker = mp.Process(target=basecaller_proc, args=(args, duplex_queue, result_queue, skip_queue, address, config, params, 0), daemon=True, name='basecall_worker_{}'.format(0))
@@ -288,7 +310,7 @@ def main():
                 duplex_queues = {name: mp.JoinableQueue() for name in queue_names}
                 reader = mp.Process(target=duplex_read_worker, args=(args, duplex_queues, duplex_pre_queue), name='duplex_read_worker')
                 reader.start()
-                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id), name='write_worker')
+                out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id, model_config_name), name='write_worker')
                 out_writer.start()
                 # set up each worker to have a unique queue, so it only processes 1 channel at a time
                 for name in queue_names:
@@ -296,20 +318,91 @@ def main():
                     basecall_worker.start()
                     processes.append(basecall_worker)
         else:
-            reader = mp.Process(target=read_worker, args=(args, input_queue), name='read_worker')
+            reader = mp.Process(target=read_worker, args=(args, input_queue, total_samples), name='read_worker')
             reader.start()
-            out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id), name='write_worker')
+            out_writer = mp.Process(target=write_worker, args=(args, result_queue, OUT, SAM_OUT, model_version_id, model_config_name), name='write_worker')
             out_writer.start()
             for i in range(args.procs):
                 basecall_worker = mp.Process(target=basecaller_proc, args=(args, input_queue, result_queue, skip_queue, address, config, params, i), daemon=True, name='basecall_worker_{}'.format(i))
                 basecall_worker.start()
                 processes.append(basecall_worker)
 
+        sample_time_start = time.perf_counter()
+
+        # Anakin, the Process supervisor
+        # Monitors all procs for a non-zero exit code. If found, it termintates all the children.
+        # If all the exitcodes are 0, it breaks the while loop and continues to join() calls.
+        while True:
+            # print("reader exit code:", reader.exitcode)
+            if reader.exitcode is not None:
+                if reader.exitcode != 0:
+                    print("ERROR: Reader process encountered an error. exitcode: ", reader.exitcode)
+                    for child in mp.active_children():
+                        child.terminate()
+                    sys.exit(1)
+            # print("writer exit code:", out_writer.exitcode)
+            if out_writer.exitcode is not None:
+                if out_writer.exitcode != 0:
+                    print("ERROR: Writer process encountered an error. exitcode: ", out_writer.exitcode)
+                    for child in mp.active_children():
+                        child.terminate()
+                    sys.exit(1)
+            for p in processes:
+                # print("proc exit code:", p.exitcode)
+                if p.exitcode is not None:
+                    if p.exitcode != 0:
+                        print("ERROR: Worker client encountered an error. exitcode: ", p.exitcode)
+                        for child in mp.active_children():
+                            child.terminate()
+                        sys.exit(1)
+            if reader.exitcode == 0:
+                p_sum = 0
+                for p in processes:
+                    if p.exitcode != 0:
+                        p_sum += 1
+                if p_sum == 0:
+                    result_queue.put(None)
+                    time.sleep(3)
+                    if out_writer.exitcode == 0:
+                        print("\n\nProc supervisor: all processes completed without detected error")
+                        break
+            time.sleep(5)
+
+        sample_time_end = time.perf_counter()
+        final_total_samples = 0
+        with total_samples.get_lock():
+            final_total_samples = total_samples.value
+
+        total_time = sample_time_end - sample_time_start
+        samples_per_sec = 0
+        if final_total_samples > 0:
+            samples_per_sec = float(final_total_samples) / float(total_time)
+        
+        #Basecalled @ Samples/s: 3.450401e+07
+        print("\nBasecalled @ Samples/s:", "{0:.6e}".format(samples_per_sec))
+
+        # Join() calls for all procs
         reader.join()
+        if reader.exitcode != 0:
+            print("ERROR: Reader process encountered an error. exitcode: ", reader.exitcode)
+            for child in mp.active_children():
+                child.terminate()
+            sys.exit(1)
         for p in processes:
             p.join()
-        result_queue.put(None)
+            if p.exitcode != 0:
+                print("ERROR: Worker client encountered an error. exitcode: ", p.exitcode)
+                for child in mp.active_children():
+                    child.terminate()
+                sys.exit(1)
+        # result_queue.put(None)
         out_writer.join()
+        if out_writer.exitcode != 0:
+            print("ERROR: Writer process encountered an error. exitcode: ", out_writer.exitcode)
+            for child in mp.active_children():
+                child.terminate()
+            sys.exit(1)
+        
 
         if skip_queue.qsize() > 0:
             # print("1")
@@ -339,7 +432,6 @@ def main():
         
         print("\n")
         print("Basecalling complete!\n")
-
 
         # ==========================================================================
         # Finish up, close files, disconnect client and terminate server

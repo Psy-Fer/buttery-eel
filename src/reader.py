@@ -70,13 +70,16 @@ def get_data_by_channel(args, dq):
         dq.put(None)
 
 
-def _get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, header_array=None):
+def _get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, header_array=None, IDs=None):
     """
     re-batchify slow5 output
     """
     batch = []
     no_end_reason = False
     for read in reads:
+        if args.resume_run:
+            if read["read_id"] in IDs:
+                continue
         # if args.seq_sum:
         # get header once for each read group
         read_group = read["read_group"]
@@ -113,13 +116,37 @@ def _get_slow5_batch(args, slow5_obj, reads, size=4096, slow5_filename=None, hea
     if len(batch) > 0:
         yield batch
 
-def read_worker(args, iq):
+def read_worker(args, iq, total_samples):
     '''
     single threaded worker to read slow5 (with multithreading)
     '''
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
+    
+    p_IDs = set()
+    # if --resume, open the file, create a set of parentIDs, and skip them in the blow5 file
+    if args.resume_run:
+        print("INFO: Resuming run from:", args.resume)
+        ext = args.resume.split(".")[-1]
+        count = 0
+        with open(args.resume, 'r') as f:
+            for line in f:
+                if ext == "fastq":
+                    if count == 0:
+                        p_IDs.add(line.split("parent_read_id=")[1].split(' ')[0])
+                    count += 1
+                    if count >= 4:
+                        count = 0
+                elif ext == "sam":
+                    if line[0] == "@":
+                        continue
+                    p_IDs.add(line.split("pi:Z:")[1].split()[0])
+                else:
+                    print("ERROR: filetype not recognised and parsed to read_worker, contact developers")
+                    sys.exit(1)
+        print("INFO: Read of resume file complete. Number of reads detected:", len(p_IDs))
+                
 
     header_array = {}
     # is dir, so reading recursivley
@@ -136,15 +163,25 @@ def read_worker(args, iq):
                     num_read_groups = s5.get_num_read_groups()
                     for read_group in range(num_read_groups):
                         header_array[read_group] = s5.get_all_headers(read_group=read_group)
-                    batches = _get_slow5_batch(args, s5, reads, size=args.slow5_batchsize, slow5_filename=sfile, header_array=header_array)
+                    batches = _get_slow5_batch(args, s5, reads, size=args.slow5_batchsize, slow5_filename=sfile, header_array=header_array, IDs=p_IDs)
                     # put batches of reads onto the queue
                     for batch in chain(batches):
                         # print(iq.qsize())
                         if iq.qsize() < max_limit:
+                            batch_samples = 0
+                            for rd in batch:
+                                batch_samples += rd['len_raw_signal']
+                            with total_samples.get_lock():
+                                total_samples.value += batch_samples
                             iq.put(batch)
                         else:
                             while iq.qsize() >= max_limit:
                                 time.sleep(0.01)
+                            batch_samples = 0
+                            for rd in batch:
+                                batch_samples += rd['len_raw_signal']
+                            with total_samples.get_lock():
+                                total_samples.value += batch_samples
                             iq.put(batch)
         
     else:
@@ -155,7 +192,7 @@ def read_worker(args, iq):
         num_read_groups = s5.get_num_read_groups()
         for read_group in range(num_read_groups):
             header_array[read_group] = s5.get_all_headers(read_group=read_group)
-        batches = _get_slow5_batch(args, s5, reads, size=args.slow5_batchsize, slow5_filename=filename_slow5, header_array=header_array)
+        batches = _get_slow5_batch(args, s5, reads, size=args.slow5_batchsize, slow5_filename=filename_slow5, header_array=header_array, IDs=p_IDs)
         # this adds a limit to how many reads it will load into memory so we
         # don't blow the ram up
         max_limit = int(args.max_read_queue_size / args.slow5_batchsize)
@@ -163,10 +200,20 @@ def read_worker(args, iq):
         for batch in chain(batches):
             # print(iq.qsize())
             if iq.qsize() < max_limit:
+                batch_samples = 0
+                for rd in batch:
+                    batch_samples += rd['len_raw_signal']
+                with total_samples.get_lock():
+                    total_samples.value += batch_samples
                 iq.put(batch)
             else:
                 while iq.qsize() >= max_limit:
                     time.sleep(0.01)
+                batch_samples = 0
+                for rd in batch:
+                    batch_samples += rd['len_raw_signal']
+                with total_samples.get_lock():
+                    total_samples.value += batch_samples
                 iq.put(batch)
     for _ in range(args.procs):
         iq.put(None)

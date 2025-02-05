@@ -38,6 +38,7 @@ pip install --upgrade setuptools wheel
 # see slow5lib for more info
 # set this first to ensure pyslow5 installs with zstd:
 # export PYSLOW5_ZSTD=1
+# newer versions of pyslow5 have zstd libs included by default
 
 # if GUPPY_VERSION=6.3.8
 # modify requirements.txt to have:
@@ -45,10 +46,8 @@ pip install --upgrade setuptools wheel
 # if using DORADO_SERVER_VERSION=7.4.12
 #   ont-pybasecall-client-lib==7.4.12
 
-python setup.py install
-
-# Alternatively, the new way of building things is to do the following command
-# pip install .
+# Install using pip
+pip install .
 
 buttery-eel --help
 
@@ -56,12 +55,12 @@ buttery-eel --help
 
 Suppose the name of the virtual environment you created is venv3 and resides directly in the root of the cloned buttery-eel git repository. In that case, you can use the wrapper script available under `/path/to/repository/scripts/eel` for conveniently executing buttery-eel. This script will automatically source the virtual environment, find a free port, execute the buttery-eel with the parameters you specified and finally deactivate the virtual environment. If you add the path of `/path/to/repository/scripts/` to your PATH environment variable, you can simply use buttery-eel as:
 ```
-eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac_prom.cfg --device cuda:all -i reads.blow5 -o reads.reads # and any other parameters
+eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac.cfg --device cuda:all -i reads.blow5 -o reads.reads # and any other parameters
 ```
 
 Alternatively, you can manually execute buttery-eel if you have sourced the virtual environment. You must provide `--port PORT --use_tcp` parameters manually in this case. Example:
 ```
-buttery-eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac_prom.cfg --device cuda:all -i reads.blow5 -o reads.reads.fastq --port 5000 --use_tcp  # and any other parameters
+buttery-eel -g /path/to/ont-guppy/bin/ --config dna_r10.4.1_e8.2_400bps_hac.cfg --device cuda:all -i reads.blow5 -o reads.reads.fastq --port 5000 --use_tcp  # and any other parameters
 ```
 
 furthermore, if you are using the latest version, and are using dorado-server backend, then simply set the port argumnet to `--port auto` and it will automatically find a free port for you.
@@ -77,6 +76,8 @@ v7.3.10
 
 
 ## Duplex calling
+
+#### Duplex looks to be depricated - leaving this for legacy sake
 
 The duplex calling does work, so long as you provide a duplex model for `--config` and the `--duplex` flag.
 
@@ -95,9 +96,9 @@ I wouldn't recommend using duplex just yet because of the issues and poor perfor
 The `--help` shown will be different for different versions of the ont library installed.
 
 ```
-usage: buttery-eel [-h] -i INPUT -o OUTPUT -g BASECALLER_BIN --config CONFIG [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE]
-                   [--quiet] [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out] [--trim_adapters] [--seq_sum] [--barcode_kits BARCODE_KITS] [--enable_trim_barcodes]
-                   [--require_barcodes_both_ends] [--duplex] [--single] [--profile] [-v]
+usage: buttery-eel [-h] -i INPUT -o OUTPUT [-g BASECALLER_BIN] [--config CONFIG] [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE] [--quiet]
+                   [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out] [--max_batch_time MAX_BATCH_TIME] [--resume RESUME] [--trim_adapters] [--seq_sum] [--barcode_kits BARCODE_KITS]
+                   [--enable_trim_barcodes] [--require_barcodes_both_ends] [--U2T] [--estimate_poly_a] [--poly_a_config POLY_A_CONFIG] [--duplex] [--single] [--profile] [-v]
 
 buttery-eel - wrapping ONT basecallers (guppy/dorado) for SLOW5 basecalling
 
@@ -127,6 +128,9 @@ Run Options:
                         Number of reads to process at a time reading slow5 (default: 20000)
   --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
+  --max_batch_time MAX_BATCH_TIME
+                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min) (default: 1200)
+  --resume RESUME       Resume a sequencing run. fastq or sam input. (default: None)
 
 Sequencing summary Options:
   --seq_sum             Write out sequencing_summary.txt file (default: False)
@@ -141,6 +145,12 @@ Barcode demultiplexing Options:
                         Flag indicating that barcodes should be trimmed. (default: False)
   --require_barcodes_both_ends
                         Flag indicating that barcodes must be at both ends. (default: False)
+
+RNA options:
+  --U2T                 Convert Uracil (U) to Thymine (T) in direct RNA output (default: False)
+  --estimate_poly_a     Perform polyA/T tail length estimation (default: False)
+  --poly_a_config POLY_A_CONFIG
+                        Filename of a custom polyA/T configuration to use for estimation. (default: None)
 
 Duplex Options:
   --duplex              Turn on duplex calling - channel based - See README for information (default: False)
@@ -167,12 +177,28 @@ Some common args are:
 - `-x/--device`: Specify CPU or GPU device: 'cpu', 'cuda:all', 'auto' or 'cuda:<device_id>[,<device_id> ...]', the default is 'cpu'. Specifying 'auto' will choose either 'cpu' or 'cuda:all' depending on the presence of a cuda device.
 - `--use_tcp`: Make connections on a tcp port instead of a Unix socket file. This flag has no effect on Windows as connections are always via tcp.
 - `-p/--port`:Port for hosting service. Specify "auto" to make server automatically search for a free port.
+- `--dorado_model_path`/`--dorado_modbase_models`: Can be provided instead of using `--config` the same way you can define a model path in dorado. The modbase models can be added like this `--dorado_modbase_models 5mC_5hmC@v1,6mA@v2` where 2 models are given separated by a comma with no spaces.
+
+Fore more information on model paths and modbase models, please refer to the models table in the dorado documentation [here](https://github.com/nanoporetech/dorado/tree/release-v0.9?tab=readme-ov-file#dna-models)
+
+## Resume a run
+
+If a run did not complete, crashed or was interupted for some reason, you can resume the run with the `--resume <failed_run.fastq/sam>` flag and providing the fastq/sam file of the failed run.
+
+Make sure the new run `-o/--output` filename is different to the file used in `--resume`, otherwise it will overwrite it and you will lose the previous run of data.
+
+Once the resumed run is completed, you can merge the output files.
+
+
+### Estimate polyT/A tails
+
+The arguments `--estimate_poly_a` and  `--poly_a_config` work the same way they do in dorado-server. Please see their documentation [here](https://github.com/nanoporetech/dorado/blob/release-v0.9/documentation/PolyTailConfig.md) for more information.
 
 
 ## Usage for older versions < 7.3.10
 ```
-usage: buttery-eel [-h] -i INPUT -o OUTPUT -g BASECALLER_BIN --config CONFIG [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE]
-                   [--quiet] [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out] [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING]
+usage: buttery-eel [-h] -i INPUT -o OUTPUT [-g BASECALLER_BIN] --config CONFIG [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--procs PROCS] [--slow5_batchsize SLOW5_BATCHSIZE] [--quiet]
+                   [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out] [--max_batch_time MAX_BATCH_TIME] [--resume RESUME] [--do_read_splitting] [--min_score_read_splitting MIN_SCORE_READ_SPLITTING]
                    [--detect_adapter] [--min_score_adapter MIN_SCORE_ADAPTER] [--trim_adapters] [--detect_mid_strand_adapter] [--seq_sum] [--barcode_kits BARCODE_KITS] [--enable_trim_barcodes]
                    [--require_barcodes_both_ends] [--detect_mid_strand_barcodes] [--min_score_barcode_front MIN_SCORE_BARCODE_FRONT] [--min_score_barcode_rear MIN_SCORE_BARCODE_REAR]
                    [--min_score_barcode_mid MIN_SCORE_BARCODE_MID] [--profile] [-v]
@@ -205,6 +231,9 @@ Run Options:
                         Number of reads to process at a time reading slow5 (default: 20000)
   --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
+  --max_batch_time MAX_BATCH_TIME
+                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min) (default: 1200)
+  --resume RESUME       Resume a sequencing run. fastq or sam input. (default: None)
 
 Sequencing summary Options:
   --seq_sum             Write out sequencing_summary.txt file (default: False)
@@ -237,6 +266,7 @@ Barcode demultiplexing Options:
                         Minimum score for a rear barcode to be classified (default: 60.0)
   --min_score_barcode_mid MIN_SCORE_BARCODE_MID
                         Minimum score for mid barcodes to be detected (default: 60.0)
+
 ```
 
 ## Aligning uSAM output and getting sorted bam using -y in minimap2
@@ -279,9 +309,9 @@ kill <PID>
 
 ONT have 4 basecallers.
 - `Albacore` (archived)
-- `Guppy`    (current - production)
+- `Guppy`    (archived)
 - `Bonito`   (research)
-- `Dorado`   (preview - future production)
+- `Dorado`   (current - production)
 
 `Albacore` (not used anymore) and `Guppy` are closed source software, and researchers are required to sign a developer agreement to gain access to the source code. Any changes made by the researchers can't share that modified software, and there are a number of restrictions in place that are too boring to talk about.
 
@@ -306,6 +336,7 @@ There is now a new python library/API for the dorado-server builds called `ont-p
 - My partner Hilary for coming up with the name.
 - Matt Loose and Alexander Payne for having the basics of this all along in your readfish code and being awesome in general
 - ONT and their open source code of bonito and dorado for handling uSAM writing.
+- Mark Bicknell at ONT who has been very helpful and patient with me while figuring out how to use new released features.
 - Lastly, I'd like to say i'm a little surprised this wasn't suggested to us by the devs at ONT when they were rejecting our pull requests on Guppy, Bonito, and Dorado. Oh well.
 
 # Software used
@@ -314,7 +345,7 @@ There is now a new python library/API for the dorado-server builds called `ont-p
 - [ONT dorado-server](https://community.nanoporetech.com/downloads)
 - [ONT ont-pyguppy-client-lib](https://pypi.org/project/ont-pyguppy-client-lib/)
 - [ONT ont-pyguppy-client-lib](https://pypi.org/project/ont-pybasecall-client-lib/)
-- basecaller code and flow mostly follows the methods used in [readfish](https://github.com/LooseLab/readfish/blob/23dd37117bce576b99caf097e7711dc87d30fa0a/ru/basecall.py) by Matt Loose and Alexander Payne
+- basecaller code and flow mostly follows the methods used in [readfish](https://github.com/LooseLab/readfish/blob/23dd37117bce576b99caf097e7711dc87d30fa0a/ru/basecall.py) by Matt Loose and Alexander Payne (thought not so much anymore from ~0.7.0)
 
 
 # Citation

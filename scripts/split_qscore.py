@@ -136,7 +136,7 @@ def find_score(read, ftype):
     if ftype == "fastq":
         header = read[0].split(" ")
         for i in header:
-            if i[:4] == "qs:i":
+            if i[:4] in ["qs:i", "qs:f"]:
                 score = float(i[5:])
             elif i.split("=")[0] in ["qscore", "mean_qscore"]:
                 score = float(i.split("=")[1])
@@ -146,7 +146,7 @@ def find_score(read, ftype):
     elif ftype == "sam":
         sread = read.split("\t")
         for i in sread:
-            if i[:4] == "qs:i":
+            if i[:4] in ["qs:i", "qs:f"]:
                 score = float(i[5:])
             else:
                 score = None

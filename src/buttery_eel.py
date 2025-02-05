@@ -76,17 +76,21 @@ def main():
     # get version to set secret flags
     above_7310_flag = False
     above_7412_flag = False
+    above_768_flag = False
     try:
         major, minor, patch = [int(i) for i in pybasecall_client_lib.__version__.split(".")]
     except:
         major, minor, patch = [int(i) for i in pyguppy_client_lib.__version__.split(".")]
-    if major >= 7 and minor >= 3:
-        above_7310_flag = True
-    if major >= 7 and minor >= 4:
-        above_7412_flag = True
+    if major >= 7:
+        if minor >= 3:
+            above_7310_flag = True
+        if minor >= 4:
+            above_7412_flag = True
+        if minor >= 6:
+            above_768_flag = True
 
     # get args from cli
-    args, other_server_args, arg_error = get_args(above_7310_flag, above_7412_flag)
+    args, other_server_args, arg_error = get_args(above_7310_flag, above_7412_flag, above_768_flag)
 
     if len(sys.argv) == 1:
         arg_error(sys.stderr)
@@ -141,7 +145,7 @@ def main():
             sys.exit(1)
         else:
             args.resume_run = True
-    
+
     # ==========================================================================
     # region Start guppy_basecall_server
     # ==========================================================================

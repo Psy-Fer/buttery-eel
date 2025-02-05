@@ -12,7 +12,7 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def get_args(above_7310_flag, above_7412_flag):
+def get_args(above_7310_flag, above_7412_flag, above_768_flag):
 
     VERSION = __version__
     parser = MyParser(description="buttery-eel - wrapping ONT basecallers (guppy/dorado) for SLOW5 basecalling",
@@ -100,10 +100,11 @@ def get_args(above_7310_flag, above_7412_flag):
         # RNA
         rna.add_argument("--U2T", action="store_true",
                             help="Convert Uracil (U) to Thymine (T) in direct RNA output")
-        rna.add_argument("--estimate_poly_a", action="store_true",
-                            help="Perform polyA/T tail length estimation")
-        rna.add_argument("--poly_a_config",
-                            help="Filename of a custom polyA/T configuration to use for estimation.")
+        if above_768_flag:
+            rna.add_argument("--estimate_poly_a", action="store_true",
+                                help="Perform polyA/T tail length estimation")
+            rna.add_argument("--poly_a_config",
+                                help="Filename of a custom polyA/T configuration to use for estimation.")
 
         # Duplex
         duplex.add_argument("--duplex", action="store_true",
@@ -231,6 +232,7 @@ def get_args(above_7310_flag, above_7412_flag):
     extra_args = argparse.Namespace(
         above_7310=above_7310_flag, # is the version >= 7.3.* where the name and inputs change?
         above_7412=above_7412_flag,
+        above_768=above_768_flag,
         resume_run=False,
         dorado_model_path_flag=dorado_model_path_flag,
     )

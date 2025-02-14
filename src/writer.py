@@ -239,8 +239,9 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
                                                                                                                         read["scaling_med_abs_dev"],
                                                                                                                         read["scaling_version"],
                                                                                                                         read["duration"])
-                        if args.estimate_poly_a:
-                            sam_tags = "{}\tpt:i:{}".format(sam_tags, read["poly_tail_length"])
+                        if args.above_768:
+                            if args.estimate_poly_a:
+                                sam_tags = "{}\tpt:i:{}".format(sam_tags, read["poly_tail_length"])
                         if args.call_mods:
                             bc_writer.write("{}\tpi:Z:{}\t{}\tBC:Z:{}\n".format(read["sam_record"], read["parent_read_id"], sam_tags, barcode))
                         elif args.moves_out:
@@ -317,8 +318,9 @@ def write_output(args, read, OUT, SAM_OUT):
                                                                                                                         read["scaling_med_abs_dev"],
                                                                                                                         read["scaling_version"],
                                                                                                                         read["duration"])
-            if args.estimate_poly_a:
-                sam_tags = "{}\tpt:i:{}".format(sam_tags, read["poly_tail_length"])
+            if args.above_768:
+                if args.estimate_poly_a:
+                    sam_tags = "{}\tpt:i:{}".format(sam_tags, read["poly_tail_length"])
             if args.duplex:
                 duplex_tag = "0"
                 if read["duplex_strand_1"] is not None:

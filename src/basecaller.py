@@ -279,6 +279,8 @@ def get_reads(args, client, read_counter, sk, read_store):
             time.sleep(client.throttle)
             continue
         else:
+            # reset timer to scale with large batch sizes, slow GPUs, and other computational bottlenecks rather than actual errors.
+            batch_start_time = time.perf_counter()
             model_id = client.get_basecalling_config()[0]["model_version_id"]
             for calls in bcalled:
                 done += 1

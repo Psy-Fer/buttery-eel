@@ -127,25 +127,62 @@ def read_worker(args, iq, total_samples):
     p_IDs = set()
     # if --resume, open the file, create a set of parentIDs, and skip them in the blow5 file
     if args.resume_run:
-        print("INFO: Resuming run from:", args.resume)
-        ext = args.resume.split(".")[-1]
-        count = 0
-        with open(args.resume, 'r') as f:
-            for line in f:
-                if ext == "fastq":
-                    if count == 0:
-                        p_IDs.add(line.split("parent_read_id=")[1].split(' ')[0])
-                    count += 1
-                    if count >= 4:
-                        count = 0
-                elif ext == "sam":
-                    if line[0] == "@":
-                        continue
-                    p_IDs.add(line.split("pi:Z:")[1].split()[0])
-                else:
-                    print("ERROR: filetype not recognised and parsed to read_worker, contact developers")
-                    sys.exit(1)
-        print("INFO: Read of resume file complete. Number of reads detected:", len(p_IDs))
+        # check if it's a single file or multiple by presence of a comma
+        files = []
+        if "," in args.resume:
+            files = [i.strip() for i in args.resume.split(",")]
+        else:
+            files = [args.resume]
+        print("INFO: Resuming run from:", files)
+        prev_count = 0
+        for file in files:
+            ext = file.split(".")[-1]
+            count = 0
+            file_reads = 0
+            error_count = 0
+            insync = True
+            with open(file, 'r') as f:
+                for line in f:
+                    if ext == "fastq":
+                        # resync the fastq format if out of sync
+                        if not insync:
+                            if line[0] == "@" and "parent_read_id" in line:
+                                count = 0
+                                insync = True
+                                print("INFO: fastq line has regained syncronisation")
+                            else:
+                                continue
+                        if count == 0:
+                            if line[0] == "@" and "parent_read_id" in line:
+                                p_IDs.add(line.split("parent_read_id=")[1].split(' ')[0])
+                                file_reads += 1
+                            else:
+                                print("WARN: First line of read does not start with @ or does not have parent_read_id=, fastq file malformed")
+                                error_count += 1
+                                insync = False
+                        count += 1
+                        if count >= 4:
+                            count = 0
+                    elif ext == "sam":
+                        if line[0] == "@":
+                            continue
+                        if "pi:Z:" in line:
+                            p_IDs.add(line.split("pi:Z:")[1].split()[0])
+                            file_reads += 1
+                        else:
+                            print("WARN: sam read does not contain pi:Z:, sam file malformed")
+                            error_count += 1
+                    else:
+                        print("ERROR: filetype not recognised and parsed to read_worker, contact developers")
+                        sys.exit(1)
+
+                    if error_count >= 5:
+                        print("ERROR: error count of 5 or more detected, please check or trim file and try again:", file)
+                        sys.exit(1)
+
+            print("INFO: Read of resume file {} complete. Number of reads detected:".format(file), len(p_IDs)-prev_count)
+            prev_count = len(p_IDs)
+        print("INFO: Total number of reads detected:", len(p_IDs))
                 
 
     header_array = {}

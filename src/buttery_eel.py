@@ -135,16 +135,18 @@ def main():
             sys.exit(1)
 
     if args.resume is not None:
-        if args.resume.split(".")[-1] not in ["fastq", "sam"]:
-            print("ERROR: resume file {} is not a fastq or sam file".format(args.resume))
-            arg_error(sys.stderr)
-            sys.exit(1)
-        elif not os.path.isfile(args.resume):
-            print("ERROR: resume file {} is does not exist".format(args.resume))
-            arg_error(sys.stderr)
-            sys.exit(1)
-        else:
-            args.resume_run = True
+        files = [i.strip() for i in args.resume.split(",")]
+        for file in files:
+            if file.split(".")[-1] not in ["fastq", "sam"]:
+                print("ERROR: resume file {} is not a fastq or sam file".format(file))
+                arg_error(sys.stderr)
+                sys.exit(1)
+            elif not os.path.isfile(file):
+                print("ERROR: resume file {} is does not exist".format(file))
+                arg_error(sys.stderr)
+                sys.exit(1)
+           
+        args.resume_run = True
 
     # ==========================================================================
     # region Start guppy_basecall_server

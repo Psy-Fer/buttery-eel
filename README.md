@@ -183,11 +183,13 @@ Fore more information on model paths and modbase models, please refer to the mod
 
 ## Resume a run
 
-If a run did not complete, crashed or was interupted for some reason, you can resume the run with the `--resume <failed_run.fastq/sam>` flag and providing the fastq/sam file of the failed run.
+If a run did not complete, crashed or was interupted for some reason, you can resume the run with the `--resume <failed_run.fastq/sam>` flag and providing the fastq/sam file of the failed run. If you have multiple files created in the previous run due to barcoding and quality splitting, you can use the pattern `--resume file1.fastq,file2.fastq` separated by a comma and no space.
+
+If the last record in a file is malformed, it will be skipped and a warning will be displayed. If there are more than 5 malformed records in a file, buttery-eel will exit with an error. This will most likely be caused by reads not having the `parent_read_id` field in fastq files or the `pi:z:` field in sam files.
 
 Make sure the new run `-o/--output` filename is different to the file used in `--resume`, otherwise it will overwrite it and you will lose the previous run of data.
 
-Once the resumed run is completed, you can merge the output files.
+Once the resumed run is completed, you can merge the output files from incomplete run with their corresponding files in the resumed run.
 
 
 ### Estimate polyT/A tails

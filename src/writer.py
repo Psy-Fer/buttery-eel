@@ -1,5 +1,5 @@
 import sys, os
-
+import time
 from ._version import __version__
 
 import cProfile, pstats, io
@@ -171,9 +171,18 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
         print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
         sys.exit(1)
 
+    batch_start_time = time.perf_counter()
     while True:
         bcalled_list = []
-        bcalled_list = q.get()
+        try:
+            bcalled_list = q.get(timeout=30)
+        except:
+            # print("writer get() timeout")
+            if time.perf_counter() - batch_start_time > args.max_batch_time:
+                print("ERROR: Writer has waited longer than {} seconds for data to be sent from workers, terminating.".format(args.max_batch_time))
+                sys.exit(1)
+            continue
+        batch_start_time = time.perf_counter()
         if bcalled_list is None:
             break
         for read in bcalled_list:

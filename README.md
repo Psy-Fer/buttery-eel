@@ -129,7 +129,7 @@ Run Options:
   --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
   --max_batch_time MAX_BATCH_TIME
-                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min) (default: 1200)
+                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=5000 (1.3h) (default: 5000)
   --resume RESUME       Resume a sequencing run. fastq or sam input. (default: None)
 
 Sequencing summary Options:
@@ -244,7 +244,7 @@ Run Options:
   --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
   --max_batch_time MAX_BATCH_TIME
-                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min) (default: 1200)
+                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=5000 (1.3h) (default: 5000)
   --resume RESUME       Resume a sequencing run. fastq or sam input. (default: None)
 
 Sequencing summary Options:

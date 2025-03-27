@@ -117,7 +117,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
             # handle the exception
             print("ERROR: An exception occurred in file opening:", type(error).__name__, "-", error)
             sys.exit(1)
-        if SUMMARY.tell() == 0:
+        if SUMMARY is not None and SUMMARY.tell() == 0:
             SUMMARY_HEADER = "\t".join(["filename_out", "filename_slow5", "parent_read_id",
                                         "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
                                         "passes_filtering", "template_start", "num_events_template", "template_duration",
@@ -140,7 +140,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
             # handle the exception
             print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
             sys.exit(1)
-        if SUMMARY.tell() == 0:
+        if BARCODE_SUMMARY is not None and BARCODE_SUMMARY.tell() == 0:
             BARCODE_SUMMARY_HEADER = "\t".join(["parent_read_id", "read_id", "barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
                                                 "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
                                                 "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",

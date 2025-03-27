@@ -417,7 +417,7 @@ def main():
                 SKIPPED = open("./skipped_reads.txt", "a")
                 print("Skipped reads detected, writing details to file: ./skipped_reads.txt")
             # if the read pointer is at the start of the file, write a header, otherwise skip it cause we are appending
-            if SKIPPED.tell() == 0 :
+            if SKIPPED is not None and SKIPPED.tell() == 0 :
                 SKIPPED.write("read_id\tstage\terror\n")
             # print("2")
 

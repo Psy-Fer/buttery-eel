@@ -274,7 +274,7 @@ def main():
             skip_queue = mp.JoinableQueue()
         
         # track total samples for samples/s calculation
-        total_samples = mp.Value('i', 0)
+        total_samples = mp.Value('Q', 0)
         sample_time_start = time.perf_counter()
 
         processes = []
@@ -411,13 +411,14 @@ def main():
             skipped = 0
             skip_queue.put(None)
             if "/" in args.output:
-                SKIPPED = open("{}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                SKIPPED = open("{}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])), "a")
                 print("Skipped reads detected, writing details to file: {}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])))
             else:
-                SKIPPED = open("./skipped_reads.txt", "w")
+                SKIPPED = open("./skipped_reads.txt", "a")
                 print("Skipped reads detected, writing details to file: ./skipped_reads.txt")
-
-            SKIPPED.write("read_id\tstage\terror\n")
+            # if the read pointer is at the start of the file, write a header, otherwise skip it cause we are appending
+            if SKIPPED.tell() == 0 :
+                SKIPPED.write("read_id\tstage\terror\n")
             # print("2")
 
             while True:

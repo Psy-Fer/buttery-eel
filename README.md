@@ -181,6 +181,16 @@ Some common args are:
 
 Fore more information on model paths and modbase models, please refer to the models table in the dorado documentation [here](https://github.com/nanoporetech/dorado/tree/release-v0.9?tab=readme-ov-file#dna-models)
 
+## Ultra long reads
+
+If you have a run with ultra long reads, there is a case where you can run out of memory and get an OOM error, which will throw some errors that look like client timeout errors. If you are running on a cluster, this is difficult to catch. (it took us a while to figure out)
+
+We found decreasing the `--slow5_batch_size` and the number of `--procs` helpped keep the ram usage low when there were lots of long reads.
+4000 reads with a length of 5k bases each is MUCH smaller than 4000 reads with a length of 100k+ with a few reads over 1M thrown in.
+
+We have found on HPC, instead of running with a batch size of 4000 and 20 procs, reducing to a batch size of 2000 and 10 procs uses a quarter of the RAM, and so can help get through the run, with minor performance impact. We were using a system with 4x Tesla V100-SXM2-32GB cards and 385GB of RAM
+Depending on your system ram and GPUs you may need to alter this further to find the right balance.
+
 ## Resume a run
 
 If a run did not complete, crashed or was interupted for some reason, you can resume the run with the `--resume <failed_run.fastq/sam>` flag and providing the fastq/sam file of the failed run. If you have multiple files created in the previous run due to barcoding and quality splitting, you can use the pattern `--resume file1.fastq,file2.fastq` separated by a comma and no space.

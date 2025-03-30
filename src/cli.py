@@ -55,8 +55,8 @@ def get_args(above_7310_flag, above_7412_flag, above_768_flag):
                             help="basecaller log folder path")
         run_options.add_argument("--moves_out", action="store_true",
                             help="output move table (sam format only)")
-        run_options.add_argument("--max_batch_time", type=int, default=1200,
-                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
+        run_options.add_argument("--max_batch_time", type=int, default=5000,
+                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=5000 (~1h20m)")
         run_options.add_argument("--resume", default=None,
                             help="Resume a sequencing run. fastq or sam input.")
 
@@ -153,8 +153,8 @@ def get_args(above_7310_flag, above_7412_flag, above_768_flag):
                             help="basecaller log folder path")
         run_options.add_argument("--moves_out", action="store_true",
                             help="output move table (sam format only)")
-        run_options.add_argument("--max_batch_time", type=int, default=1200,
-                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min)")
+        run_options.add_argument("--max_batch_time", type=int, default=5000,
+                            help="Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=5000 (~1h20m)")
         run_options.add_argument("--resume", default=None,
                             help="Resume a sequencing run. fastq or sam input.")
 

@@ -1,5 +1,5 @@
 import sys, os
-
+import time
 from ._version import __version__
 
 import cProfile, pstats, io
@@ -108,22 +108,22 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
     if args.seq_sum:
         try:
             if "/" in args.output:
-                SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                SUMMARY = open("{}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])), "a")
                 print("Writing summary file to: {}/sequencing_summary.txt".format("/".join(args.output.split("/")[:-1])))
             else:
-                SUMMARY = open("./sequencing_summary.txt", "w")
+                SUMMARY = open("./sequencing_summary.txt", "a")
                 print("Writing summary file to: ./sequencing_summary.txt")
         except Exception as error:
             # handle the exception
             print("ERROR: An exception occurred in file opening:", type(error).__name__, "-", error)
             sys.exit(1)
-
-        SUMMARY_HEADER = "\t".join(["filename_out", "filename_slow5", "parent_read_id",
-                                    "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
-                                    "passes_filtering", "template_start", "num_events_template", "template_duration",
-                                    "sequence_length_template", "mean_qscore_template", "strand_score_template",
-                                    "median_template", "mad_template", "experiment_id", "sample_id", "end_reason"])
-        write_summary(SUMMARY, SUMMARY_HEADER)
+        if SUMMARY is not None and SUMMARY.tell() == 0:
+            SUMMARY_HEADER = "\t".join(["filename_out", "filename_slow5", "parent_read_id",
+                                        "read_id", "run_id", "channel", "mux", "minknow_events", "start_time", "duration",
+                                        "passes_filtering", "template_start", "num_events_template", "template_duration",
+                                        "sequence_length_template", "mean_qscore_template", "strand_score_template",
+                                        "median_template", "mad_template", "experiment_id", "sample_id", "end_reason"])
+            write_summary(SUMMARY, SUMMARY_HEADER)
     else:
         SUMMARY = None
     
@@ -131,49 +131,59 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
         bc_files = {}
         try:
             if "/" in args.output:
-                BARCODE_SUMMARY = open("{}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                BARCODE_SUMMARY = open("{}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])), "a")
                 print("Writing summary file to: {}/barcoding_summary.txt".format("/".join(args.output.split("/")[:-1])))
             else:
-                BARCODE_SUMMARY = open("./barcoding_summary.txt", "w")
+                BARCODE_SUMMARY = open("./barcoding_summary.txt", "a")
                 print("Writing summary file to: ./barcoding_summary.txt")
         except Exception as error:
             # handle the exception
             print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
             sys.exit(1)
-        BARCODE_SUMMARY_HEADER = "\t".join(["parent_read_id", "read_id", "barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
-                                            "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
-                                            "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
-                                            "barcode_rear_end_index"])
-        write_summary(BARCODE_SUMMARY, BARCODE_SUMMARY_HEADER)
+        if BARCODE_SUMMARY is not None and BARCODE_SUMMARY.tell() == 0:
+            BARCODE_SUMMARY_HEADER = "\t".join(["parent_read_id", "read_id", "barcode_arrangement", "barcode_full_arrangement", "barcode_kit", "barcode_variant", "barcode_score",
+                                                "barcode_front_id", "barcode_front_score", "barcode_front_refseq", "barcode_front_foundseq", "barcode_front_foundseq_length",
+                                                "barcode_front_begin_index", "barcode_rear_id", "barcode_rear_score", "barcode_rear_refseq", "barcode_rear_foundseq", "barcode_rear_foundseq_length",
+                                                "barcode_rear_end_index"])
+            write_summary(BARCODE_SUMMARY, BARCODE_SUMMARY_HEADER)
 
     try:
         if SAM_OUT:
             if args.qscore:
-                PASS = open(files["pass"], 'w') 
-                FAIL = open(files["fail"], 'w')
+                PASS = open(files["pass"], 'x') 
+                FAIL = open(files["fail"], 'x')
                 sam_header(PASS, model_version_id, model_config_name)
                 sam_header(FAIL, model_version_id, model_config_name)
                 OUT = {"pass": PASS, "fail": FAIL}
             else:
-                single = open(files["single"], 'w')
+                single = open(files["single"], 'x')
                 sam_header(single, model_version_id, model_config_name)
                 OUT = {"single": single}
         else:
             if args.qscore:
-                PASS = open(files["pass"], 'w') 
-                FAIL = open(files["fail"], 'w')
+                PASS = open(files["pass"], 'x') 
+                FAIL = open(files["fail"], 'x')
                 OUT = {"pass": PASS, "fail": FAIL}
             else:
-                single = open(files["single"], 'w')
+                single = open(files["single"], 'x')
                 OUT = {"single": single}
     except Exception as error:
         # handle the exception
         print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)
         sys.exit(1)
 
+    batch_start_time = time.perf_counter()
     while True:
         bcalled_list = []
-        bcalled_list = q.get()
+        try:
+            bcalled_list = q.get(timeout=30)
+        except:
+            # print("writer get() timeout")
+            if time.perf_counter() - batch_start_time > args.max_batch_time:
+                print("ERROR: Writer has waited longer than {} seconds for data to be sent from workers, terminating.".format(args.max_batch_time))
+                sys.exit(1)
+            continue
+        batch_start_time = time.perf_counter()
         if bcalled_list is None:
             break
         for read in bcalled_list:
@@ -215,7 +225,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
                     elif fkey == "fail":
                         bcod_file = ".".join(name + ["fail"] + [barcode] + ext)
                     try:
-                        bc_files[barcode_name] = open(bcod_file, 'w')
+                        bc_files[barcode_name] = open(bcod_file, 'x')
                     except Exception as error:
                         # handle the exception
                         print("ERROR: An exception occurred file opening:", type(error).__name__, "-", error)

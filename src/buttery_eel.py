@@ -135,16 +135,18 @@ def main():
             sys.exit(1)
 
     if args.resume is not None:
-        if args.resume.split(".")[-1] not in ["fastq", "sam"]:
-            print("ERROR: resume file {} is not a fastq or sam file".format(args.resume))
-            arg_error(sys.stderr)
-            sys.exit(1)
-        elif not os.path.isfile(args.resume):
-            print("ERROR: resume file {} is does not exist".format(args.resume))
-            arg_error(sys.stderr)
-            sys.exit(1)
-        else:
-            args.resume_run = True
+        files = [i.strip() for i in args.resume.split(",")]
+        for file in files:
+            if file.split(".")[-1] not in ["fastq", "sam"]:
+                print("ERROR: resume file {} is not a fastq or sam file".format(file))
+                arg_error(sys.stderr)
+                sys.exit(1)
+            elif not os.path.isfile(file):
+                print("ERROR: resume file {} is does not exist".format(file))
+                arg_error(sys.stderr)
+                sys.exit(1)
+           
+        args.resume_run = True
 
     # ==========================================================================
     # region Start guppy_basecall_server
@@ -272,7 +274,7 @@ def main():
             skip_queue = mp.JoinableQueue()
         
         # track total samples for samples/s calculation
-        total_samples = mp.Value('i', 0)
+        total_samples = mp.Value('Q', 0)
         sample_time_start = time.perf_counter()
 
         processes = []
@@ -409,13 +411,14 @@ def main():
             skipped = 0
             skip_queue.put(None)
             if "/" in args.output:
-                SKIPPED = open("{}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])), "w")
+                SKIPPED = open("{}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])), "a")
                 print("Skipped reads detected, writing details to file: {}/skipped_reads.txt".format("/".join(args.output.split("/")[:-1])))
             else:
-                SKIPPED = open("./skipped_reads.txt", "w")
+                SKIPPED = open("./skipped_reads.txt", "a")
                 print("Skipped reads detected, writing details to file: ./skipped_reads.txt")
-
-            SKIPPED.write("read_id\tstage\terror\n")
+            # if the read pointer is at the start of the file, write a header, otherwise skip it cause we are appending
+            if SKIPPED is not None and SKIPPED.tell() == 0 :
+                SKIPPED.write("read_id\tstage\terror\n")
             # print("2")
 
             while True:

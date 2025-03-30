@@ -267,15 +267,10 @@ def get_reads(args, client, read_counter, sk, read_store):
     bcalled_list = []
     skipped_list = []
 
-    batch_start_time = time.perf_counter()
-
 
     while done < read_counter:
         bcalled = client.get_completed_reads()
         if not bcalled:
-            if time.perf_counter() - batch_start_time > args.max_batch_time:
-                print("ERROR: Basecall client has waited longer than {} seconds for data to return from basecall server.".format(args.max_batch_time))
-                sys.exit(1)
             time.sleep(client.throttle)
             continue
         else:

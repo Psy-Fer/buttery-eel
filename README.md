@@ -129,7 +129,7 @@ Run Options:
   --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
   --max_batch_time MAX_BATCH_TIME
-                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min) (default: 1200)
+                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=5000 (1.3h) (default: 5000)
   --resume RESUME       Resume a sequencing run. fastq or sam input. (default: None)
 
 Sequencing summary Options:
@@ -181,13 +181,25 @@ Some common args are:
 
 Fore more information on model paths and modbase models, please refer to the models table in the dorado documentation [here](https://github.com/nanoporetech/dorado/tree/release-v0.9?tab=readme-ov-file#dna-models)
 
+## Ultra long reads
+
+If you have a run with ultra long reads, there is a case where you can run out of memory and get an OOM error, which will throw some errors that look like client timeout errors. If you are running on a cluster, this is difficult to catch. (it took us a while to figure out)
+
+We found decreasing the `--slow5_batch_size` and the number of `--procs` helpped keep the ram usage low when there were lots of long reads.
+4000 reads with a length of 5k bases each is MUCH smaller than 4000 reads with a length of 100k+ with a few reads over 1M thrown in.
+
+We have found on HPC, instead of running with a batch size of 4000 and 20 procs, reducing to a batch size of 2000 and 10 procs uses a quarter of the RAM, and so can help get through the run, with minor performance impact. We were using a system with 4x Tesla V100-SXM2-32GB cards and 385GB of RAM
+Depending on your system ram and GPUs you may need to alter this further to find the right balance.
+
 ## Resume a run
 
-If a run did not complete, crashed or was interupted for some reason, you can resume the run with the `--resume <failed_run.fastq/sam>` flag and providing the fastq/sam file of the failed run.
+If a run did not complete, crashed or was interupted for some reason, you can resume the run with the `--resume <failed_run.fastq/sam>` flag and providing the fastq/sam file of the failed run. If you have multiple files created in the previous run due to barcoding and quality splitting, you can use the pattern `--resume file1.fastq,file2.fastq` separated by a comma and no space.
+
+If the last record in a file is malformed, it will be skipped and a warning will be displayed. If there are more than 5 malformed records in a file, buttery-eel will exit with an error. This will most likely be caused by reads not having the `parent_read_id` field in fastq files or the `pi:z:` field in sam files.
 
 Make sure the new run `-o/--output` filename is different to the file used in `--resume`, otherwise it will overwrite it and you will lose the previous run of data.
 
-Once the resumed run is completed, you can merge the output files.
+Once the resumed run is completed, you can merge the output files from incomplete run with their corresponding files in the resumed run.
 
 
 ### Estimate polyT/A tails
@@ -232,7 +244,7 @@ Run Options:
   --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
   --moves_out           output move table (sam format only) (default: False)
   --max_batch_time MAX_BATCH_TIME
-                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=1200 (20min) (default: 1200)
+                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=5000 (1.3h) (default: 5000)
   --resume RESUME       Resume a sequencing run. fastq or sam input. (default: None)
 
 Sequencing summary Options:

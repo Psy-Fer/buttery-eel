@@ -77,6 +77,7 @@ def main():
     above_7310_flag = False
     above_7412_flag = False
     above_768_flag = False
+    above_798_flag = False
     try:
         major, minor, patch = [int(i) for i in pybasecall_client_lib.__version__.split(".")]
     except:
@@ -88,9 +89,11 @@ def main():
             above_7412_flag = True
         if minor >= 6:
             above_768_flag = True
+        if minor >= 9:
+            above_798_flag = True
 
     # get args from cli
-    args, other_server_args, arg_error = get_args(above_7310_flag, above_7412_flag, above_768_flag)
+    args, other_server_args, arg_error = get_args(above_7310_flag, above_7412_flag, above_768_flag, above_798_flag)
 
     if len(sys.argv) == 1:
         arg_error(sys.stderr)
@@ -436,10 +439,11 @@ def main():
         print("\n")
         print("Basecalling complete!\n")
 
+
         # ==========================================================================
         # Finish up, close files, disconnect client and terminate server
         # ==========================================================================
-        print("\n")
+        # print("server_stats: {}".format(client.get_server_stats(address, 10)))
         # print("==========================================================================\n  Summary\n==========================================================================")
         # global total_reads
         # print("Processed {} reads\n".format(total_reads))

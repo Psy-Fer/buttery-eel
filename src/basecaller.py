@@ -102,6 +102,9 @@ def start_guppy_server_and_client(args, server_args):
         else:
             params["move_and_trace_enabled"] = True
     
+    if args.above_798:
+            params["move_enabled"] = True
+    
     if args.call_mods:
         if args.above_7412:
             params["move_enabled"] = True
@@ -338,7 +341,7 @@ def get_reads(args, client, read_counter, sk, read_store):
                             skipped_list.append([read_id, "stage-1", "Sequence length of zero"])
                             continue
                         bcalled_read["qscore"] = call['datasets']['qstring']
-                        if args.moves_out:
+                        if args.moves_out or args.above_798:
                             bcalled_read["move_table"] = call['datasets']['movement']
                             bcalled_read["model_stride"] = call['metadata']['model_stride']
                         if args.call_mods:

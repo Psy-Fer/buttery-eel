@@ -12,7 +12,7 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def get_args(above_7310_flag, above_7412_flag, above_768_flag):
+def get_args(above_7310_flag, above_7412_flag, above_768_flag, above_798_flag):
 
     VERSION = __version__
     parser = MyParser(description="buttery-eel - wrapping ONT basecallers (guppy/dorado) for SLOW5 basecalling",
@@ -233,6 +233,7 @@ def get_args(above_7310_flag, above_7412_flag, above_768_flag):
         above_7310=above_7310_flag, # is the version >= 7.3.* where the name and inputs change?
         above_7412=above_7412_flag,
         above_768=above_768_flag,
+        above_798=above_798_flag,
         resume_run=False,
         dorado_model_path_flag=dorado_model_path_flag,
     )

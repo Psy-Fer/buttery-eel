@@ -254,7 +254,8 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
                                 sam_tags = "{}\tpt:i:{}".format(sam_tags, read["poly_tail_length"])
                         if args.call_mods:
                             bc_writer.write("{}\tpi:Z:{}\t{}\tBC:Z:{}\n".format(read["sam_record"], read["parent_read_id"], sam_tags, barcode))
-                        elif args.moves_out or args.above_798:
+                        # elif args.moves_out or args.above_798:
+                        elif args.moves_out:
                             m = read["move_table"].tolist()
                             move_str = ','.join(map(str, m))
                             bc_writer.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\t{}\tpi:Z:{}\tBC:Z:{}\n".format(read["read_id"], read["sequence"], read["qscore"], read["model_stride"], move_str, sam_tags, read["parent_read_id"], barcode))
@@ -339,7 +340,8 @@ def write_output(args, read, OUT, SAM_OUT):
                     duplex_tag = "-1"
                 if args.call_mods:
                     OUT.write("{}\tpi:Z:{}\tdx:i:{}\n".format(read["sam_record"], read["parent_read_id"], duplex_tag))
-                elif args.moves_out or args.above_798:
+                # elif args.moves_out or args.above_798:
+                elif args.moves_out:
                     m = read["move_table"].tolist()
                     move_str = ','.join(map(str, m))
                     OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tpi:Z:{}\t{}\tdx:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["parent_read_id"], sam_tags, duplex_tag))
@@ -348,7 +350,8 @@ def write_output(args, read, OUT, SAM_OUT):
             else:
                 if args.call_mods:
                     OUT.write("{}\tpi:Z:{}\n".format(read["sam_record"], read["parent_read_id"]))
-                elif args.moves_out or args.above_798:
+                # elif args.moves_out or args.above_798:
+                elif args.moves_out:
                     m = read["move_table"].tolist()
                     move_str = ','.join(map(str, m))
                     OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tmv:B:c,{},{}\tpi:Z:{}\t{}\n".format(read_id, read["sequence"], read["qscore"], read["model_stride"], move_str, read["parent_read_id"], sam_tags))

@@ -102,8 +102,8 @@ def start_guppy_server_and_client(args, server_args):
         else:
             params["move_and_trace_enabled"] = True
     
-    if args.above_798:
-            params["move_enabled"] = True
+    # if args.above_798:
+    #         params["move_enabled"] = True
     
     if args.call_mods:
         if args.above_7412:
@@ -286,6 +286,17 @@ def get_reads(args, client, read_counter, sk, read_store):
                 if len(calls) > 1:
                     split_reads = True
                 for call in calls:
+                    # if split_reads and int(call['metadata']['split_point']) > 0:
+                    #     print(call)
+                    #     sys.exit(1)
+                    # for i in call:
+                    #     if isinstance(call[i], dict):
+                    #         for j in call[i]:
+                    #             print("{}: {}".format(j, call[i][j]))
+                    #     else:
+                    #         print("{}: {}".format(i, call[i]))
+                    #     time.sleep(5)
+                        # sys.exit(1)
                     if args.duplex:
                         if int(call['metadata']['channel']) > 20000:
                             # print("Fake read:", call['metadata']['channel'])
@@ -296,20 +307,16 @@ def get_reads(args, client, read_counter, sk, read_store):
                             continue
                     # print("Channel: {} - read {}/{}".format(call['metadata']['channel'], done, read_counter))
                     # if call['metadata']['read_id'] == "6f57d0a2-cfe4-4678-b6bc-299527eec9cc":
-                    #     for i in call:
-                    #         if isinstance(call[i], dict):
-                    #             for j in call[i]:
-                    #                 print("{}: {}".format(j, call[i][j]))
-                    #         else:
-                    #             print("{}: {}".format(i, call[i]))
-                    #     sys.exit(1)
                     try:
                         bcalled_read = {}
+                        bcalled_read["split_read"] = False
                         bcalled_read["sam_record"] = ""
                         read_id = call['metadata']['read_id']
                         bcalled_read["parent_read_id"] = read_id
                         if split_reads:
+                            bcalled_read["split_read"] = True
                             bcalled_read["read_id"] = call['metadata']['strand_id']
+                            bcalled_read["split_point"] = int(call['metadata']['split_point'])
                         else:
                             bcalled_read["read_id"] = read_id
                         bcalled_read["read_qscore"] = call['metadata']['mean_qscore']
@@ -341,7 +348,8 @@ def get_reads(args, client, read_counter, sk, read_store):
                             skipped_list.append([read_id, "stage-1", "Sequence length of zero"])
                             continue
                         bcalled_read["qscore"] = call['datasets']['qstring']
-                        if args.moves_out or args.above_798:
+                        # if args.moves_out or args.above_798:
+                        if args.moves_out:
                             bcalled_read["move_table"] = call['datasets']['movement']
                             bcalled_read["model_stride"] = call['metadata']['model_stride']
                         if args.call_mods:

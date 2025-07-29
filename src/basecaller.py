@@ -740,8 +740,9 @@ def basecaller_proc(args, iq, rq, sk, address, config, params, N):
                         for _ in range(bcalled_count-len(sub_batch)):
                             if batch:  # Check if the list is not empty before popping
                                 sub_batch.append(batch.pop())
-                            else:
-                                print("Batch is empty?!?!")
+                            # else:
+                                # print("Batch is empty?!?!")
+                                # print("batch:", batch)
                         if batch:
                             batch_left = len(batch)
                         else:
@@ -751,8 +752,8 @@ def basecaller_proc(args, iq, rq, sk, address, config, params, N):
                         for _ in range(batch_left):
                             if batch:  # Check if the list is not empty before popping
                                 sub_batch.append(batch.pop())
-                            else:
-                                print("Batch is empty?!?!")
+                            # else:
+                                # print("Batch is empty?!?!")
                         last_submited = True
                         if batch:
                             batch_left = len(batch)

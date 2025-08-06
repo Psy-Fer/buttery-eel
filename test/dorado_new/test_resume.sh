@@ -26,7 +26,7 @@
 # script to execute buttery-eel with resume function and compare against a normal run
 die() {
     echo "Error: $@" >&2
-    #exit 1
+    exit 1
 }
 
 

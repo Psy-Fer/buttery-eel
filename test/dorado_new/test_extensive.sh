@@ -25,7 +25,7 @@
 
 die() {
     echo "Error: $@" >&2
-    #exit 1
+    exit 1
 }
 
 rm -f *.log
@@ -89,7 +89,7 @@ echo "adapater trimming"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
 export OPTS_GUPPY="--trim_adapters"
-export OPTS_EEL=$OPTS_GUPPY
+export OPTS_EEL="--trim_adapters"
 test/dorado_new/test.sh &> r10_adaptertrim.log  || echo "test failed. See r10_adaptertrim.log for details"
 unset OPTS_GUPPY
 unset OPTS_EEL

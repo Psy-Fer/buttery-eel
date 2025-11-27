@@ -35,8 +35,12 @@ def get_args(above_7310_flag, above_7412_flag, above_768_flag, above_798_flag):
                             help="output .fastq or unaligned .sam file to write")
         run_options.add_argument("-g", "--basecaller_bin", type=Path,
                             help="path to basecaller bin folder, eg: ont-dorado-server/bin")
-        run_options.add_argument("--config", default="dna_r10.4.1_e8.2_400bps_5khz_hac.cfg",
+        run_options.add_argument("--config",
                             help="basecalling model config")
+        run_options.add_argument("--model",
+                            help="basecalling model (use instead of config)")
+        run_options.add_argument("--modbase_models",
+                            help="modbase model - can be given as a comma separated list with no spaces")
         run_options.add_argument("--call_mods", action="store_true",
                             help="output MM/ML tags for methylation - will output sam - use with appropriate mod config")
         run_options.add_argument("-q", "--qscore", type=int,
@@ -224,7 +228,7 @@ def get_args(above_7310_flag, above_7412_flag, above_768_flag, above_798_flag):
     # now merge them. This will all get printed into the arg print below which also helps with troubleshooting
     args = argparse.Namespace(**vars(args), **vars(old_args))
 
-    if "--dorado_model_path" in other_server_args:
+    if "--model" in other_server_args:
         dorado_model_path_flag = True
     else:
         dorado_model_path_flag = False

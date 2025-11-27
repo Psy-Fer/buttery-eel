@@ -7,6 +7,7 @@ import os
 import multiprocessing as mp
 import platform
 import time
+import json
 
 try:
     import pybasecall_client_lib
@@ -182,7 +183,9 @@ def main():
         model_config_name = bc_config["config_name"]
         # print("Server Basecalling config:")
         # print("get_server_internal_state():", client.get_server_internal_state(address, 10))
-        # print(client.get_server_information("127.0.0.1:5000", 10))
+        server_info = client.get_server_information(address, 10)
+        gpu_name = json.loads(server_info[0])["CUDA Devices"]["device_0"]["name"]
+        print("GPU:", gpu_name)
         # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_protocol_version())
         # print(client.get_software_version())

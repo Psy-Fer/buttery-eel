@@ -35,10 +35,7 @@ def start_guppy_server_and_client(args, server_args):
     found = False
     gotten = False
     model_path = False
-    model_index = 0
     mod_path = False
-    mod_index = 0
-    counter = 0
     tmp_args = []
     for arg in server_args:
         if not gotten:
@@ -55,25 +52,6 @@ def start_guppy_server_and_client(args, server_args):
             print("\n")
             continue
         tmp_args.append(arg)
-
-        if arg == "--dorado_model_path":
-            model_path = True
-            model_index = counter + 1
-            if args.call_mods:
-                if "--dorado_modbase_models" not in server_args:
-                    print("ERROR: --call_mods argument given with use of --dorado_model_path, but no --dorado_modbase_models path given")
-                    sys.exit(1)
-        if arg == "--dorado_modbase_models":
-            mod_path = True
-            mod_index = counter + 1
-            if not args.call_mods:
-                print("ERROR: ---dorado_modbase_models argument given, but no --call_mods arg given")
-                sys.exit(1)
-            
-        if arg == "--dorado_duplex_model_path":
-            print("ERROR: --dorado_duplex_model_path argument given. This is not yet implemented due to the deprication of duplex. Please let us know if you require this on GitHub")
-            sys.exit(1)
-        counter += 1
     
     if basecaller_bin is None:
         print("-g/--basecaller_bin/--guppy_bin is a required argument")
@@ -87,8 +65,18 @@ def start_guppy_server_and_client(args, server_args):
                         # "--chunk_size", args.chunk_size,
                         ])
     # if no model path given, add --config back in
-    if not model_path:
+    if args.model:
+        # TODO: add version based backward compatible stuff here, because it was hinky for a bit before 7.11.2
+        server_args.extend(["--model", args.model])
+        model_path = True
+        if args.modbase_models:
+            server_args.extend(["--modbase_models", args.modbase_models])
+            mod_path = True
+    elif args.config:
         server_args.extend(["--config", args.config])
+    else:
+        print("ERROR: No model or config detected. Exiting")
+        sys.exit(1)
     
     # the high priority queue uses a different batch size which alters the basecalls when called with dorado
     # leaving this on default should set it to medium and give 'correct' results
@@ -162,20 +150,19 @@ def start_guppy_server_and_client(args, server_args):
         address = "localhost:{}".format(port)
     if model_path:
         # create the model set <simplex_model>|<mod_models>|<duplex_model> (must include the ||)
-        simplex_model = server_args[model_index].rstrip("/").split("/")[-1]
-        mod_models = ""
         # takes a single argument, but can be a comma sep list
         # it takes the simplex model, and appends the mod models to it
         # so if simplex is dna_r10.4.1_e8.2_400bps_hac@v4.3.0
         # and mod_path is 5mC_5hmC@v1,6mA@v2
         # dna_r10.4.1_e8.2_400bps_hac@v4.3.0_5mC_5hmC@v1,dna_r10.4.1_e8.2_400bps_hac@v4.3.0_6mA@v2
-        if mod_path:
-            server_args
-            tmp_mods = server_args[mod_index].split(",")
-            mod_models = ",".join(["{}_{}".format(simplex_model, i) for i in tmp_mods])
+        if args.modbase_models:
+            mod_models = args.modbase_models
+        else:
+            mod_models = ""
+
         # excluding this given duplex is dead
         duplex_model = ""
-        model_set = "{}|{}|{}".format(simplex_model, mod_models, duplex_model)
+        model_set = "{}|{}|{}".format(args.model, mod_models, duplex_model)
         client = pclient(address=address, config=model_set)
     else:
         client = pclient(address=address, config=args.config)
@@ -485,6 +472,8 @@ def get_reads2(args, client, bcalled, sk, read_store):
         if len(calls) > 1:
             split_reads = True
         for call in calls:
+            # print(call)
+            # print("\n-------------------------------------------------------------------\n")
             try:
                 bcalled_read = {}
                 bcalled_read["split_read"] = False

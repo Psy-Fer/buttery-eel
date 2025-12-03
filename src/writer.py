@@ -252,8 +252,10 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name, g
                         if args.above_768:
                             if args.estimate_poly_a:
                                 sam_tags = "{}\tpt:i:{}\tpa:B:i:{}".format(sam_tags, read["poly_tail_length"], read["poly_tail_info"])
+                            if read["split_read"]:
+                                sam_tags = "{}\tsp:i:{}".format(sam_tags, read["split_point"])
                         if args.call_mods:
-                            bc_writer.write("{}\tpi:Z:{}\t{}\tBC:Z:{}\n".format(read["sam_record"], read["parent_read_id"], sam_tags, barcode))
+                            bc_writer.write("{}\tBC:Z:{}\n".format(read["sam_record"], barcode))
                         # elif args.moves_out or args.above_798:
                         elif args.moves_out:
                             m = read["move_table"].tolist()
@@ -332,6 +334,8 @@ def write_output(args, read, OUT, SAM_OUT, gpu_name):
             if args.above_768:
                 if args.estimate_poly_a:
                     sam_tags = "{}\tpt:i:{}\tpa:B:i:{}".format(sam_tags, read["poly_tail_length"], read["poly_tail_info"])
+                if read["split_read"]:
+                    sam_tags = "{}\tsp:i:{}".format(sam_tags, read["split_point"])
             if args.duplex:
                 duplex_tag = "0"
                 if read["duplex_strand_1"] is not None:
@@ -349,7 +353,7 @@ def write_output(args, read, OUT, SAM_OUT, gpu_name):
                     OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tpi:Z:{}\tqs:f:{}\tdx:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["parent_read_id"], read["float_read_qscore"], duplex_tag))
             else:
                 if args.call_mods:
-                    OUT.write("{}\tpi:Z:{}\n".format(read["sam_record"], read["parent_read_id"]))
+                    OUT.write("{}\n".format(read["sam_record"]))
                 # elif args.moves_out or args.above_798:
                 elif args.moves_out:
                     m = read["move_table"].tolist()

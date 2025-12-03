@@ -500,6 +500,12 @@ def get_reads2(args, client, bcalled, sk, read_store):
                 if args.above_768:
                     if args.estimate_poly_a:
                         bcalled_read["poly_tail_length"] = call['metadata'].get('poly_tail_length', 0)
+                        bcalled_read["poly_tail_info"] = "{}|{}|{}|{}|{}".format(call['metadata'].get('poly_tail_anchor', -1),
+                                                                                 call['metadata'].get('poly_tail_start_1', -1),
+                                                                                 call['metadata'].get('poly_tail_end_1', -1),
+                                                                                 call['metadata'].get('poly_tail_start_2', -1),
+                                                                                 call['metadata'].get('poly_tail_end_2', -1),
+                                                                                 )
 
             except Exception as error:
                 # handle the exception

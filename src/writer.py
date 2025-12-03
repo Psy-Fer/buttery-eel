@@ -251,7 +251,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name, g
                                                                                                                         read["duration"])
                         if args.above_768:
                             if args.estimate_poly_a:
-                                sam_tags = "{}\tpt:i:{}\tpa:B:i{}".format(sam_tags, read["poly_tail_length"], "range_info")
+                                sam_tags = "{}\tpt:i:{}\tpa:B:i:{}".format(sam_tags, read["poly_tail_length"], read["poly_tail_info"])
                         if args.call_mods:
                             bc_writer.write("{}\tpi:Z:{}\t{}\tBC:Z:{}\n".format(read["sam_record"], read["parent_read_id"], sam_tags, barcode))
                         # elif args.moves_out or args.above_798:
@@ -331,7 +331,7 @@ def write_output(args, read, OUT, SAM_OUT, gpu_name):
                                                                                                                         read["duration"])
             if args.above_768:
                 if args.estimate_poly_a:
-                    sam_tags = "{}\tpt:i:{}\tpa:B:i{}".format(sam_tags, read["poly_tail_length"], "range_info")
+                    sam_tags = "{}\tpt:i:{}\tpa:B:i:{}".format(sam_tags, read["poly_tail_length"], read["poly_tail_info"])
             if args.duplex:
                 duplex_tag = "0"
                 if read["duplex_strand_1"] is not None:

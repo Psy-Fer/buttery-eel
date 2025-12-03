@@ -97,7 +97,7 @@ def sam_header(OUT, model_version_id, model_config_name, sep='\t'):
     OUT.write("{}\n".format(PG2))
 
 
-def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
+def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name, gpu_name):
     '''
     single threaded worker to process results queue
     '''
@@ -284,12 +284,12 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
                                 bc_writer.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tqs:f:{}\tns:i:{}\tts:i:{}\tBC:Z:{}\n".format(read["read_id"], read["sequence"], read["qscore"], read["float_read_qscore"], read["num_samples"], read["trimmed_samples"], barcode))
 
                 else:
-                    bc_writer.write("{} barcode={}\n".format(read["header"], barcode))
+                    bc_writer.write("{} barcode={} basecall_gpu={}\n".format(read["header"], barcode, "_".join(gpu_name.split(" "))))
                     bc_writer.write("{}\n".format(read["sequence"]))
                     bc_writer.write("+\n")
                     bc_writer.write("{}\n".format(read["qscore"]))
 
-            write_output(args, read, OUT[fkey], SAM_OUT)
+            write_output(args, read, OUT[fkey], SAM_OUT, gpu_name)
         q.task_done()
     
     if len(OUT.keys()) > 1:
@@ -312,7 +312,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
         with open("write_worker.log", 'w') as f:
             print(s.getvalue(), file=f)
 
-def write_output(args, read, OUT, SAM_OUT):
+def write_output(args, read, OUT, SAM_OUT, gpu_name):
     '''
     write the ouput to the file
     '''
@@ -379,7 +379,7 @@ def write_output(args, read, OUT, SAM_OUT):
                     OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tqs:f:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["float_read_qscore"], read["num_samples"], read["trimmed_samples"]))
     else:
         # write fastq
-        OUT.write("{}\n".format(read["header"]))
+        OUT.write("{} basecall_gpu={}\n".format(read["header"], "_".join(gpu_name.split(" "))))
         OUT.write("{}\n".format(read["sequence"]))
         OUT.write("+\n")
         OUT.write("{}\n".format(read["qscore"]))

@@ -110,8 +110,9 @@ def start_guppy_server_and_client(args, server_args):
     if args.detect_mid_strand_adapter and not args.above_7412:
         params["detect_mid_strand_adapter"] = True
 
-    if args.trim_adapters and not args.above_7412:
+    if args.trim_adapters:
         params["trim_adapters"] = True
+    if not args.above_7412:
         params["detect_adapter"] = True
         params["min_score_adapter"] = args.min_score_adapter
     

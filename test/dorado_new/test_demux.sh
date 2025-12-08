@@ -92,8 +92,8 @@ kill $pid
 # ${PATH_TO_GUPPY}/ont_barcoder --barcode_kits ${BARCODE} -i ${GUPPY_OUT_TMP}/basecalls -s ${GUPPY_OUT_TMP}/barcodes  -x cuda:all --recursive
 
 for NAME in ${LIST}; do
-  dir=${GUPPY_OUT_TMP}/barcodes/${NAME}
-  cat ${dir}/*  > ${GUPPY_OUT_TMP}/reads.${NAME}.fastq
+  dir=${GUPPY_OUT_TMP}/barcodes/
+  cat ${dir}/pass/${NAME}/* ${dir}/fail/${NAME}/* > ${GUPPY_OUT_TMP}/reads.${NAME}.fastq
   ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads.${NAME}.fastq| cut -f 2- >>  ${GUPPY_OUT_TMP}/reads_tmp.identity
 done
 

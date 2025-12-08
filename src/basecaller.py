@@ -222,6 +222,7 @@ def submit_reads(args, client, sk, batch):
                             channel=int(read["channel_number"]),
                             run_id=read_store[read_id]["header_array"]["run_id"],
                             duration=read['len_raw_signal'],
+                            end_reason=read['end_reason'],
                         ))
             else:
                 result = client.pass_read(helper_functions.package_read(

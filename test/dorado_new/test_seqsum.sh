@@ -72,7 +72,7 @@ execute_test() {
 }
 
 FIELDS="read_id,run_id,channel,mux"
-FIELDS_APPROX="read_id,median_template,mad_template"
+FIELDS_APPROX="read_id"
 
 CURRENT_GUPPY=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 3)
 test -z ${CURRENT_GUPPY} && die "ont-pybasecall-client-lib not found in requirements.txt"

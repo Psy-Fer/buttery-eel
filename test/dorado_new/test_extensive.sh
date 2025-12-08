@@ -59,7 +59,7 @@ echo "********************************************************************"
 echo "R10.4.1 DNA - FAST model - 20k reads - resume"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
-export MODEL=dna_r10.4.1_e8.2_400bps_5khz_fast.cfg
+export MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
 test/dorado_new/test_resume.sh &> r10_resume.log || die "test failed. see r10_resume.log for details"
 echo ""
 echo "********************************************************************"
@@ -67,7 +67,7 @@ echo "********************************************************************"
 echo "R10.4.1 DNA - HAC model - 20k reads - split qscore inbuilt"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
-export MODEL=dna_r10.4.1_e8.2_400bps_5khz_fast.cfg
+export MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
 test/dorado_new/test_qscore_split.sh &> r10_split1.log || die "test failed. see r10_split1.log for details"
 echo ""
 echo "********************************************************************"
@@ -75,7 +75,7 @@ echo "********************************************************************"
 echo "R10.4.1 DNA - FAST model - 20k reads - split qscore script"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
-export MODEL=dna_r10.4.1_e8.2_400bps_5khz_fast.cfg
+export MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
 test/dorado_new/test_qscore_split2.sh &> r10_split2.log || die "test failed. See r10_split2.log for details"
 echo ""
 echo "********************************************************************"
@@ -172,7 +172,7 @@ echo "********************************************************************"
 echo "remora"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
-export MODEL=dna_r10.4.1_e8.2_400bps_5khz_modbases_5hmc_5mc_hac.cfg
+# export MODEL=dna_r10.4.1_e8.2_400bps_5khz_modbases_5hmc_5mc_hac.cfg
 test/dorado_new/test_remora.sh &> remora.log || die "test failed. See remora.log for details"
 echo ""
 echo "********************************************************************"
@@ -190,25 +190,30 @@ echo "********************************************************************"
 echo "R10.4.1 DNA - FAST model - 500k reads"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsample/reads.blow5
-export MODEL=dna_r10.4.1_e8.2_400bps_5khz_fast.cfg
+export MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
 test/dorado_new/test.sh &> dna_500k.log || die "test failed. See dna_500k.log for details"
 echo ""
 echo "********************************************************************"
 
 echo "R9.4.1 RNA - FAST model"
-export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
-export REFIDX=/genome/gencode.v40.transcripts.fa
-export PATH_TO_FAST5=/data/slow5-testdata/uhr_prom_rna002_subsubsample/fast5/
-export PATH_TO_BLOW5=/data/slow5-testdata/uhr_prom_rna002_subsubsample/PRPN119035_reads_20k.blow5
-export MODEL=rna_r9.4.1_70bps_fast.cfg
-test/dorado_new/test.sh &> rna.log || die "test failed. See rna.log for details"
+echo "Deprecated"
+echo ""
+echo "********************************************************************"
+
+# export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
+# export REFIDX=/genome/gencode.v40.transcripts.fa
+# export PATH_TO_FAST5=/data/slow5-testdata/uhr_prom_rna002_subsubsample/fast5/
+# export PATH_TO_BLOW5=/data/slow5-testdata/uhr_prom_rna002_subsubsample/PRPN119035_reads_20k.blow5
+# export MODEL=rna_r9.4.1_70bps_fast.cfg
+# test/dorado_new/test.sh &> rna.log || die "test failed. See rna.log for details"
 
 echo "RNA004 RNA - rna_rp4_130bps_fast"
 export PATH_TO_IDENTITY=/install/biorand/bin/identityrna.sh
 export REFIDX=/genome/gencode.v40.transcripts.fa
 export PATH_TO_FAST5=/data/slow5-testdata/uhr_prom_rna004_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/uhr_prom_rna004_subsubsample/PNXRXX240011_reads_20k.blow5
-export MODEL=rna_rp4_130bps_hac.cfg
+# export MODEL=rna_rp4_130bps_hac.cfg
+export MODEL=rna004_130bps_hac@v5.2.0
 export OPTS_GUPPY="--estimate_poly_a"
 export OPTS_EEL="--estimate_poly_a"
 test/dorado_new/test.sh &> rna.log || die "test failed. See rna.log for details"

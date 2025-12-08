@@ -60,7 +60,8 @@ test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_chr
 test -z $BIS && BIS=/data/slow5-testdata/hg2_prom_lsk114_chr22/chr22_bi.tsv
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
 test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
-test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_fast.cfg
+test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_hac@v5.2.0
+test -z $MOD_MODEL && MOD_MODEL=dna_r10.4.1_e8.2_400bps_hac@v5.2.0_5mCG_5hmCG@v2
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $REF && REF=/genome/hg38noAlt.fa
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
@@ -86,10 +87,10 @@ source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
 
 echo "Running server"
 LOGPATH=$(mktemp -d)
-${PATH_TO_GUPPY}/dorado_basecall_server  --config ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
+${PATH_TO_GUPPY}/dorado_basecall_server  --model ${MODEL} --modbase_models ${MOD_MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
 pid=$!
 echo "Running client"
-${PATH_TO_GUPPY}/ont_basecall_client -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  --recursive --port 5000 --use_tcp ${OPTS_GUPPY}
+${PATH_TO_GUPPY}/ont_basecall_client --model ${MODEL} --modbase_models ${MOD_MODEL} -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}  --recursive --port 5000 --use_tcp ${OPTS_GUPPY}
 kill $pid
 ${SAMTOOLS} cat ${GUPPY_OUT_TMP}/pass/*.bam ${GUPPY_OUT_TMP}/fail/*.bam -o ${GUPPY_OUT_TMP}/reads_tmp.bam
 ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.bam | cut -f 2- >  ${GUPPY_OUT_TMP}/reads_tmp.identity
@@ -103,7 +104,7 @@ cat ${GUPPY_OUT_TMP}/remora.tsv | tail -n+2 | cut -f3,5 | datamash ppearson 1:2 
 
 echo "Running buttery-eel"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.sam --port ${PORT} --call_mods --use_tcp ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --model ${MODEL} --modbase_models ${MOD_MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.sam --port ${PORT} --call_mods --use_tcp ${OPTS_EEL} &> eel.log
 cat eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then

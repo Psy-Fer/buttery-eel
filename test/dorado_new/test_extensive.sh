@@ -49,11 +49,11 @@ export REFIDX=/genome/hg38noAlt.idx
 
 
 echo "R9.4.1 DNA - FAST model - 20k reads"
-export PATH_TO_FAST5=/data/slow5-testdata/NA12878_prom_subsubsample/fast5/
-export PATH_TO_BLOW5=/data/slow5-testdata/NA12878_prom_subsubsample/reads.blow5
-export MODEL=dna_r9.4.1_450bps_fast.cfg
-test/dorado_new/test.sh &> r9_dna_fast.log || die "test failed. see r9_dna_fast.log for details"
-echo ""
+# export PATH_TO_FAST5=/data/slow5-testdata/NA12878_prom_subsubsample/fast5/
+# export PATH_TO_BLOW5=/data/slow5-testdata/NA12878_prom_subsubsample/reads.blow5
+# export MODEL=dna_r9.4.1_450bps_fast.cfg
+# test/dorado_new/test.sh &> r9_dna_fast.log || die "test failed. see r9_dna_fast.log for details"
+echo "No R9.4.1 no longer supported from dorado ~7.11.2"
 echo "********************************************************************"
 
 echo "R10.4.1 DNA - FAST model - 20k reads - resume"

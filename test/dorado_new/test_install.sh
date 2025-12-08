@@ -28,7 +28,7 @@ die(){
     exit 1
 }
 
-GUPPY_VERSION=7.9.8
+GUPPY_VERSION=7.11.2
 CURRENT_DORADO=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 3)
 GUPPY_LIB=$(grep "ont-pyguppy-client-lib" requirements.txt | cut -d "=" -f 1)
 DORADO_LIB=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 1)

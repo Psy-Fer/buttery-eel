@@ -113,7 +113,8 @@ def start_guppy_server_and_client(args, server_args):
     if args.trim_adapters:
         params["trim_adapters"] = True
         params["detect_adapter"] = True
-        params["min_score_adapter"] = args.min_score_adapter
+        if not args.above_7412:
+            params["min_score_adapter"] = args.min_score_adapter
     
     if args.barcode_kits:
         params["barcode_kits"] = args.barcode_kits

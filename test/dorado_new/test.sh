@@ -27,7 +27,7 @@
 
 die() {
     echo "Error: $@" >&2
-    #exit 1
+    exit 1
 }
 
 
@@ -58,7 +58,7 @@ test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/NA12878_prom_subsub
 test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/NA12878_prom_subsubsample/reads.blow5
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
 test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
-test -z $MODEL && MODEL=dna_r9.4.1_450bps_fast.cfg
+test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
 test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
@@ -80,10 +80,10 @@ source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
 
 echo "Running server"
 LOGPATH=$(mktemp -d)
-${PATH_TO_GUPPY}/dorado_basecall_server --config ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
+${PATH_TO_GUPPY}/dorado_basecall_server --model ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
 pid=$!
 echo "Running client"
-${PATH_TO_GUPPY}/ont_basecall_client -c ${MODEL} -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP} --recursive ${OPTS_GUPPY} --port 5000 --use_tcp
+${PATH_TO_GUPPY}/ont_basecall_client --model ${MODEL} -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP} --recursive ${OPTS_GUPPY} --port 5000 --use_tcp
 kill $pid
 
 cat ${GUPPY_OUT_TMP}/pass/* ${GUPPY_OUT_TMP}/fail/* > ${GUPPY_OUT_TMP}/reads_tmp.fastq
@@ -91,7 +91,7 @@ ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads_tmp.fastq | cut -f 2- >  ${
 
 echo "Running buttery-eel"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel -g ${PATH_TO_GUPPY} --config ${MODEL} --device 'cuda:all' -i ${PATH_TO_BLOW5} -o ${EEL_OUT_TMP}/reads.fastq --port ${PORT} --use_tcp ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel -g ${PATH_TO_GUPPY} --model ${MODEL} --device 'cuda:all' -i ${PATH_TO_BLOW5} -o ${EEL_OUT_TMP}/reads.fastq --port ${PORT} --use_tcp ${OPTS_EEL} &> eel.log
 cat eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then

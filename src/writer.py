@@ -97,7 +97,7 @@ def sam_header(OUT, model_version_id, model_config_name, sep='\t'):
     OUT.write("{}\n".format(PG2))
 
 
-def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
+def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name, gpu_name):
     '''
     single threaded worker to process results queue
     '''
@@ -251,9 +251,12 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
                                                                                                                         read["duration"])
                         if args.above_768:
                             if args.estimate_poly_a:
-                                sam_tags = "{}\tpt:i:{}".format(sam_tags, read["poly_tail_length"])
+                                sam_tags = "{}\tpt:i:{}\tpa:B:i:{}".format(sam_tags, read["poly_tail_length"], read["poly_tail_info"])
+                            if read["split_read"]:
+                                sam_tags = "{}\tsp:i:{}".format(sam_tags, read["split_point"])
                         if args.call_mods:
-                            bc_writer.write("{}\tpi:Z:{}\t{}\tBC:Z:{}\n".format(read["sam_record"], read["parent_read_id"], sam_tags, barcode))
+                            bc_writer.write("{}\tBC:Z:{}\n".format(read["sam_record"], barcode))
+                        # elif args.moves_out or args.above_798:
                         elif args.moves_out:
                             m = read["move_table"].tolist()
                             move_str = ','.join(map(str, m))
@@ -283,12 +286,12 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
                                 bc_writer.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tqs:f:{}\tns:i:{}\tts:i:{}\tBC:Z:{}\n".format(read["read_id"], read["sequence"], read["qscore"], read["float_read_qscore"], read["num_samples"], read["trimmed_samples"], barcode))
 
                 else:
-                    bc_writer.write("{} barcode={}\n".format(read["header"], barcode))
+                    bc_writer.write("{} barcode={} basecall_gpu={}\n".format(read["header"], barcode, "_".join(gpu_name.split(" "))))
                     bc_writer.write("{}\n".format(read["sequence"]))
                     bc_writer.write("+\n")
                     bc_writer.write("{}\n".format(read["qscore"]))
 
-            write_output(args, read, OUT[fkey], SAM_OUT)
+            write_output(args, read, OUT[fkey], SAM_OUT, gpu_name)
         q.task_done()
     
     if len(OUT.keys()) > 1:
@@ -311,7 +314,7 @@ def write_worker(args, q, files, SAM_OUT, model_version_id, model_config_name):
         with open("write_worker.log", 'w') as f:
             print(s.getvalue(), file=f)
 
-def write_output(args, read, OUT, SAM_OUT):
+def write_output(args, read, OUT, SAM_OUT, gpu_name):
     '''
     write the ouput to the file
     '''
@@ -330,7 +333,9 @@ def write_output(args, read, OUT, SAM_OUT):
                                                                                                                         read["duration"])
             if args.above_768:
                 if args.estimate_poly_a:
-                    sam_tags = "{}\tpt:i:{}".format(sam_tags, read["poly_tail_length"])
+                    sam_tags = "{}\tpt:i:{}\tpa:B:i:{}".format(sam_tags, read["poly_tail_length"], read["poly_tail_info"])
+                if read["split_read"]:
+                    sam_tags = "{}\tsp:i:{}".format(sam_tags, read["split_point"])
             if args.duplex:
                 duplex_tag = "0"
                 if read["duplex_strand_1"] is not None:
@@ -339,6 +344,7 @@ def write_output(args, read, OUT, SAM_OUT):
                     duplex_tag = "-1"
                 if args.call_mods:
                     OUT.write("{}\tpi:Z:{}\tdx:i:{}\n".format(read["sam_record"], read["parent_read_id"], duplex_tag))
+                # elif args.moves_out or args.above_798:
                 elif args.moves_out:
                     m = read["move_table"].tolist()
                     move_str = ','.join(map(str, m))
@@ -347,7 +353,8 @@ def write_output(args, read, OUT, SAM_OUT):
                     OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tpi:Z:{}\tqs:f:{}\tdx:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["parent_read_id"], read["float_read_qscore"], duplex_tag))
             else:
                 if args.call_mods:
-                    OUT.write("{}\tpi:Z:{}\n".format(read["sam_record"], read["parent_read_id"]))
+                    OUT.write("{}\n".format(read["sam_record"]))
+                # elif args.moves_out or args.above_798:
                 elif args.moves_out:
                     m = read["move_table"].tolist()
                     move_str = ','.join(map(str, m))
@@ -376,7 +383,7 @@ def write_output(args, read, OUT, SAM_OUT):
                     OUT.write("{}\t4\t*\t0\t0\t*\t*\t0\t0\t{}\t{}\tqs:f:{}\tns:i:{}\tts:i:{}\n".format(read_id, read["sequence"], read["qscore"], read["float_read_qscore"], read["num_samples"], read["trimmed_samples"]))
     else:
         # write fastq
-        OUT.write("{}\n".format(read["header"]))
+        OUT.write("{} basecall_gpu={}\n".format(read["header"], "_".join(gpu_name.split(" "))))
         OUT.write("{}\n".format(read["sequence"]))
         OUT.write("+\n")
         OUT.write("{}\n".format(read["qscore"]))

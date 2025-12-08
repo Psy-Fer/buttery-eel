@@ -20,7 +20,7 @@ You can download guppy or dorado server here: https://community.nanoporetech.com
 
 # Quickstart
 
-Using python3, preferably python3.8 to 3.12. Older versions of guppy will work with 3.7, but not with 3.10 or higher.
+Using python3, preferably python3.9 to 3.12. Older versions of guppy will work with 3.7, but not with 3.10 or higher.
 
 Install a version of `guppy` (something higher than 4) where `GUPPY_VERSION` is the version, for example, `6.3.8`. Alternatively, you can install a version of `dorado server` too.
 Download: https://community.nanoporetech.com/downloads
@@ -43,8 +43,8 @@ pip install --upgrade setuptools wheel
 # if GUPPY_VERSION=6.3.8
 # modify requirements.txt to have:
 #   ont-pyguppy-client-lib==6.3.8
-# if using DORADO_SERVER_VERSION=7.4.12
-#   ont-pybasecall-client-lib==7.4.12
+# if using DORADO_SERVER_VERSION=7.11.2
+#   ont-pybasecall-client-lib==7.11.2
 
 # Install using pip
 pip install .
@@ -74,6 +74,10 @@ v7.3.10
 - ONT have removed the `--do_read_splitting` option, and it is now on by default
 - `--detect_adapter` and a number of other barcode/adapter options were removed
 
+v7.11.2
+- ONT have removed `--config` and replaced it with `--model`
+- `--modbase_models` is used for setting modification calling mods, still needs `--call_mods`
+
 
 ## Duplex calling
 
@@ -90,8 +94,87 @@ However there are some things to note:
 
 I wouldn't recommend using duplex just yet because of the issues and poor performance.
 
+## Usage (7.11.2)
 
-# Usage
+Using `--model` for selecting the basecalling model
+
+```
+# Call using HAC model, trim adapters, and split into pass/fail using a mean_qscore of 9
+
+buttery-eel -g /install/ont-dorado-server-7.11.2/bin/ --model dna_r10.4.1_e8.2_400bps_hac@v5.2.0 --device cuda:all -i reads.blow5 -o reads.fastq --port auto --use_tcp --trim_adapters --procs 10 --slow5_threads 10 --qscore 9
+
+```
+
+### CLI
+
+```
+buttery-eel --help
+
+usage: buttery-eel [-h] -i INPUT -o OUTPUT [-g BASECALLER_BIN] [--model MODEL] [--modbase_models MODBASE_MODELS] [--call_mods] [-q QSCORE] [--slow5_threads SLOW5_THREADS] [--procs PROCS]
+                   [--slow5_batchsize SLOW5_BATCHSIZE] [--quiet] [--max_read_queue_size MAX_READ_QUEUE_SIZE] [--log LOG] [--moves_out] [--max_batch_time MAX_BATCH_TIME] [--resume RESUME] [--trim_adapters]
+                   [--seq_sum] [--barcode_kits BARCODE_KITS] [--enable_trim_barcodes] [--require_barcodes_both_ends] [--U2T] [--estimate_poly_a] [--poly_a_config POLY_A_CONFIG] [--duplex] [--single]
+                   [--profile] [-v]
+
+buttery-eel - wrapping ONT basecallers (guppy/dorado) for SLOW5 basecalling
+
+options:
+  -h, --help            show this help message and exit
+  --profile             run cProfile on all processes - for debugging benchmarking (default: False)
+  -v, --version         Prints version
+
+Run Options:
+  -i INPUT, --input INPUT
+                        input blow5 file or directory for basecalling (default: None)
+  -o OUTPUT, --output OUTPUT
+                        output .fastq or unaligned .sam file to write (default: None)
+  -g BASECALLER_BIN, --basecaller_bin BASECALLER_BIN
+                        path to basecaller bin folder, eg: ont-dorado-server/bin (default: None)
+  --model MODEL         basecalling model (use instead of config) (default: None)
+  --modbase_models MODBASE_MODELS
+                        modbase model - can be given as a comma separated list with no spaces (default: None)
+  --call_mods           output MM/ML tags for methylation - will output sam - use with appropriate mod config (default: False)
+  -q QSCORE, --qscore QSCORE
+                        A mean q-score to split fastq/sam files into pass/fail output (default: None)
+  --slow5_threads SLOW5_THREADS
+                        Number of threads to use reading slow5 file (default: 4)
+  --procs PROCS         Number of worker processes to use processing reads (default: 4)
+  --slow5_batchsize SLOW5_BATCHSIZE
+                        Number of reads to process at a time reading slow5 (default: 4000)
+  --quiet               Don't print progress (default: False)
+  --max_read_queue_size MAX_READ_QUEUE_SIZE
+                        Number of reads to process at a time reading slow5 (default: 20000)
+  --log LOG             basecaller log folder path (default: buttery_basecaller_logs)
+  --moves_out           output move table (sam format only) (default: False)
+  --max_batch_time MAX_BATCH_TIME
+                        Maximum seconds to wait for batch to be basecalled before killing basecalling. Used to detect locked states/hung servers. Default=5000 (~1h20m) (default: 5000)
+  --resume RESUME       Resume a sequencing run. fastq or sam input. (default: None)
+
+Sequencing summary Options:
+  --seq_sum             Write out sequencing_summary.txt file (default: False)
+
+Adapter trimming Options:
+  --trim_adapters       Flag indicating that adapters should be trimmed. Default is False. (default: False)
+
+Barcode demultiplexing Options:
+  --barcode_kits BARCODE_KITS
+                        Strings naming each barcode kit to use. Default is to not do barcoding. (default: None)
+  --enable_trim_barcodes
+                        Flag indicating that barcodes should be trimmed. (default: False)
+  --require_barcodes_both_ends
+                        Flag indicating that barcodes must be at both ends. (default: False)
+
+RNA options:
+  --U2T                 Convert Uracil (U) to Thymine (T) in direct RNA output (default: False)
+  --estimate_poly_a     Perform polyA/T tail length estimation (default: False)
+  --poly_a_config POLY_A_CONFIG
+                        Filename of a custom polyA/T configuration to use for estimation. (default: None)
+
+Duplex Options:
+  --duplex              Turn on duplex calling - channel based - See README for information (default: False)
+  --single              use only a single proc for testing - DUPLEX TESTING (default: False)
+```
+
+## Usage for older versions < 7.6.8
 
 The `--help` shown will be different for different versions of the ont library installed.
 

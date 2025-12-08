@@ -1,4 +1,4 @@
 numpy
-pyslow5>=1.1.0
+pyslow5>=1.3.1
 #ont-pyguppy-client-lib==6.5.7
-ont-pybasecall-client-lib==7.6.8
+ont-pybasecall-client-lib==7.11.2

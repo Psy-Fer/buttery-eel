@@ -26,7 +26,7 @@
 # script to execute buttery-eel with resume function and compare against a normal run
 die() {
     echo "Error: $@" >&2
-    #exit 1
+    exit 1
 }
 
 
@@ -57,7 +57,7 @@ test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_sub
 test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_subsubsample/reads.blow5
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
 test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
-test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_fast.cfg
+test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
 test -z $EEL_OUT_TMP && EEL_OUT_TMP=buttery_eel_tmp
@@ -92,7 +92,7 @@ source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
 
 echo "Running buttery-eel"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT} --use_tcp ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --model ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT} --use_tcp ${OPTS_EEL} &> eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
     die "Memory usage is too high: $MEM"
@@ -111,7 +111,7 @@ head -n 40 ${EEL_OUT_TMP}/reads.fastq > ${EEL_OUT_TMP2}/reads_truncated.fastq
 
 echo "Running buttery-eel with resume"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP2}/reads_resume.fastq --port ${PORT} --use_tcp --resume ${EEL_OUT_TMP2}/reads_truncated.fastq ${OPTS_EEL} &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --model ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP2}/reads_resume.fastq --port ${PORT} --use_tcp --resume ${EEL_OUT_TMP2}/reads_truncated.fastq ${OPTS_EEL} &> eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
     die "Memory usage is too high: $MEM"

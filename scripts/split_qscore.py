@@ -2,7 +2,8 @@
 
 import argparse
 import sys
-import numpy as np
+# import numpy as np
+import math
 
 """
 James M. Ferguson (j.ferguson@garvan.org.au)
@@ -152,14 +153,28 @@ def find_score(read, ftype):
                 score = None
     return score
 
+# def calculate_qscore(qstring):
+#     '''
+#     calculate a qscore from a qstring
+#     '''
+#     qs = (np.array(qstring, 'c').view(np.uint8) - 33)
+#     mean_err = np.exp(qs * (-np.log(10) / 10.)).mean()
+#     score = -10 * np.log10(max(mean_err, 1e-4))
+#     return score
+
+# New method that trims first 60 bases if longer than 60 bases
+# taken from https://software-docs.nanoporetech.com/dorado/1.3.0/basecaller/qscore/
 def calculate_qscore(qstring):
-    '''
-    calculate a qscore from a qstring
-    '''
-    qs = (np.array(qstring, 'c').view(np.uint8) - 33)
-    mean_err = np.exp(qs * (-np.log(10) / 10.)).mean()
-    score = -10 * np.log10(max(mean_err, 1e-4))
-    return score
+    """Calculates mean Q-score from a Q-string"""
+    # Truncate string if sufficiently long
+    qstr = qstring[60:] if len(qstring) > 60 else qstring
+    # Convert ASCII to Phred quality scores, then to estimated error
+    errors = [10**(-(ord(char) - 33)/10) for char in qstr]
+    # Calculate mean error
+    mean_error = sum(errors) / len(errors)
+    # Convert back to q-score
+    mean_qscore = -10 * math.log10(mean_error)
+    return mean_qscore
 
 def test_read(qscore, score):
     '''

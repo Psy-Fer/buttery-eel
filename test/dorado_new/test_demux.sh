@@ -27,7 +27,7 @@
 
 die() {
     echo "Error: $@" >&2
-    #exit 1
+    exit 1
 }
 
 
@@ -60,7 +60,8 @@ test -z $PATH_TO_FAST5 && PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
 test -z $PATH_TO_BLOW5 && PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
 test -z $PATH_TO_IDENTITY && PATH_TO_IDENTITY=/install/biorand/bin/identitydna.sh
 test -z $PATH_TO_EEL_VENV && PATH_TO_EEL_VENV=./venv3/bin/activate
-test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_hac.cfg
+# test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_hac.cfg
+test -z $MODEL && MODEL=dna_r10.4.1_e8.2_400bps_hac@v5.2.0
 test -z $BARCODE && BARCODE=SQK-NBD114-96
 test -z $REFIDX && REFIDX=/genome/hg38noAlt.idx
 test -z $GUPPY_OUT_TMP && GUPPY_OUT_TMP=ont-guppy-tmp
@@ -83,22 +84,22 @@ source ${PATH_TO_EEL_VENV} || die "Failed to source ${PATH_TO_EEL_VENV}"
 
 echo "Running server"
 LOGPATH=$(mktemp -d)
-${PATH_TO_GUPPY}/dorado_basecall_server  --config ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
+${PATH_TO_GUPPY}/dorado_basecall_server  --model ${MODEL} --port 5000 --use_tcp -x cuda:all --log_path ${LOGPATH} &
 pid=$!
 echo "Running client"
-${PATH_TO_GUPPY}/ont_basecall_client -c ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}/basecalls  --recursive --port 5000 --use_tcp ${OPTS_GUPPY}
+${PATH_TO_GUPPY}/ont_basecall_client --model ${MODEL}  -i ${PATH_TO_FAST5} -s ${GUPPY_OUT_TMP}/barcodes --barcode_kits ${BARCODE} --recursive --port 5000 --use_tcp ${OPTS_GUPPY}
 kill $pid
-${PATH_TO_GUPPY}/ont_barcoder --barcode_kits ${BARCODE} -i ${GUPPY_OUT_TMP}/basecalls -s ${GUPPY_OUT_TMP}/barcodes  -x cuda:all --recursive
+# ${PATH_TO_GUPPY}/ont_barcoder --barcode_kits ${BARCODE} -i ${GUPPY_OUT_TMP}/basecalls -s ${GUPPY_OUT_TMP}/barcodes  -x cuda:all --recursive
 
 for NAME in ${LIST}; do
-  dir=${GUPPY_OUT_TMP}/barcodes/${NAME}
-  cat ${dir}/*  > ${GUPPY_OUT_TMP}/reads.${NAME}.fastq
+  dir=${GUPPY_OUT_TMP}/barcodes/
+  cat ${dir}/pass/${NAME}/* ${dir}/fail/${NAME}/* > ${GUPPY_OUT_TMP}/reads.${NAME}.fastq
   ${PATH_TO_IDENTITY} ${REFIDX} ${GUPPY_OUT_TMP}/reads.${NAME}.fastq| cut -f 2- >>  ${GUPPY_OUT_TMP}/reads_tmp.identity
 done
 
 echo "Running buttery-eel FASTQ mode"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT}  --use_tcp ${OPTS_EEL} --barcode_kits ${BARCODE}  &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --model ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.fastq --port ${PORT}  --use_tcp ${OPTS_EEL} --barcode_kits ${BARCODE}  &> eel.log
 cat eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then
@@ -126,7 +127,7 @@ rm -r ${EEL_OUT_TMP} && mkdir ${EEL_OUT_TMP} || die "Failed to create ${EEL_OUT_
 
 echo "Running buttery-eel SAM mode"
 PORT=$(get_port)
-/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --config ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.sam --port ${PORT}  --use_tcp ${OPTS_EEL} --barcode_kits ${BARCODE}  &> eel.log
+/usr/bin/time -v buttery-eel  -g ${PATH_TO_GUPPY}  --model ${MODEL} --device 'cuda:all' -i  ${PATH_TO_BLOW5} -o  ${EEL_OUT_TMP}/reads.sam --port ${PORT}  --use_tcp ${OPTS_EEL} --barcode_kits ${BARCODE}  &> eel.log
 cat eel.log
 MEM=$(grep "Maximum resident set size" eel.log | cut -d " " -f 6)
 if [ $MEM -gt 8000000 ]; then

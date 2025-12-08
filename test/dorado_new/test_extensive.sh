@@ -133,7 +133,7 @@ echo ""
 echo "********************************************************************"
 
 echo "demux - FASTQ and SAM"
-export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
+export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
 export MODEL=dna_r10.4.1_e8.2_400bps_hac@v5.2.0
 test/dorado_new/test_demux.sh &> demux.log || die "test failed. See demux.log for details"
@@ -141,14 +141,14 @@ echo ""
 echo "********************************************************************"
 
 echo "demux - qscore - FASTQ and SAM"
-export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
+export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
 test/dorado_new/test_demux_qscore_split.sh &> demux_qscore.log  || die "test failed. See demux_qscore.log for details"
 echo ""
 echo "********************************************************************"
 
 echo "demux - qscore - FASTQ and SAM - BARCODE+adapter trimming"
-export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/fast5/
+export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
 export OPTS_GUPPY="--trim_adapters "
 export OPTS_BARCODER="--enable_trim_barcodes"

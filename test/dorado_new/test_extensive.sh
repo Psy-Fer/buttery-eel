@@ -60,7 +60,7 @@ echo "R10.4.1 DNA - FAST model - 20k reads - resume"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
 export MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
-#test/dorado_new/test_resume.sh &> r10_resume.log || die "test failed. see r10_resume.log for details"
+test/dorado_new/test_resume.sh &> r10_resume.log || die "test failed. see r10_resume.log for details"
 echo ""
 echo "********************************************************************"
 
@@ -68,7 +68,7 @@ echo "R10.4.1 DNA - HAC model - 20k reads - split qscore inbuilt"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
 export MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
-#test/dorado_new/test_qscore_split.sh &> r10_split1.log || die "test failed. see r10_split1.log for details"
+test/dorado_new/test_qscore_split.sh &> r10_split1.log || die "test failed. see r10_split1.log for details"
 echo ""
 echo "********************************************************************"
 
@@ -76,7 +76,7 @@ echo "R10.4.1 DNA - FAST model - 20k reads - split qscore script"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
 export MODEL=dna_r10.4.1_e8.2_400bps_fast@v5.2.0
-#test/dorado_new/test_qscore_split2.sh &> r10_split2.log || die "test failed. See r10_split2.log for details"
+test/dorado_new/test_qscore_split2.sh &> r10_split2.log || die "test failed. See r10_split2.log for details"
 echo ""
 echo "********************************************************************"
 
@@ -90,7 +90,7 @@ export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
 export OPTS_GUPPY="--trim_adapters"
 export OPTS_EEL="--trim_adapters"
-#test/dorado_new/test.sh &> r10_adaptertrim.log  || echo "test failed. See r10_adaptertrim.log for details"
+test/dorado_new/test.sh &> r10_adaptertrim.log  || echo "test failed. See r10_adaptertrim.log for details"
 unset OPTS_GUPPY
 unset OPTS_EEL
 echo ""
@@ -121,14 +121,14 @@ echo "********************************************************************"
 echo "seqsum"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
-#test/dorado_new/test_seqsum.sh &> seqsum.log || die "test failed. See seqsum.log for details"
+test/dorado_new/test_seqsum.sh &> seqsum.log || die "test failed. See seqsum.log for details"
 echo ""
 echo "********************************************************************"
 
 echo "seqsum - multiple BLOW5"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
-#test/dorado_new/test_seqsum.sh &> seqsum_multiblow.log
+test/dorado_new/test_seqsum.sh &> seqsum_multiblow.log
 echo ""
 echo "********************************************************************"
 
@@ -136,14 +136,14 @@ echo "demux - FASTQ and SAM"
 export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
 export MODEL=dna_r10.4.1_e8.2_400bps_hac@v5.2.0
-#test/dorado_new/test_demux.sh &> demux.log || die "test failed. See demux.log for details"
+test/dorado_new/test_demux.sh &> demux.log || die "test failed. See demux.log for details"
 echo ""
 echo "********************************************************************"
 
 echo "demux - qscore - FASTQ and SAM"
 export PATH_TO_FAST5=/data/slow5-testdata/barcode_test/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/barcode_test/merged_rand.blow5
-#test/dorado_new/test_demux_qscore_split.sh &> demux_qscore.log  || die "test failed. See demux_qscore.log for details"
+test/dorado_new/test_demux_qscore_split.sh &> demux_qscore.log  || die "test failed. See demux_qscore.log for details"
 echo ""
 echo "********************************************************************"
 
@@ -154,7 +154,7 @@ export OPTS_GUPPY="--trim_adapters --enable_trim_barcodes"
 # export OPTS_BARCODER="--enable_trim_barcodes"
 # export OPTS_EEL=$OPTS_GUPPY" "$OPTS_BARCODER
 export OPTS_EEL=$OPTS_GUPPY
-#test/dorado_new/test_demux_qscore_split.sh &> demux_qscore_trim.log  || echo "test failed. See demux_qscore_trim.log for details"
+test/dorado_new/test_demux_qscore_split.sh &> demux_qscore_trim.log  || echo "test failed. See demux_qscore_trim.log for details"
 unset OPTS_GUPPY
 unset OPTS_EEL
 echo ""
@@ -173,7 +173,7 @@ echo "********************************************************************"
 echo "remora"
 export PATH_TO_FAST5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/pod5/
 export PATH_TO_BLOW5=/data/slow5-testdata/hg2_prom_lsk114_5khz_subsubsample/reads.blow5
-# export MODEL=dna_r10.4.1_e8.2_400bps_5khz_modbases_5hmc_5mc_hac.cfg
+export MODEL=dna_r10.4.1_e8.2_400bps_5khz_modbases_5hmc_5mc_hac.cfg
 test/dorado_new/test_remora.sh &> remora.log || die "test failed. See remora.log for details"
 echo ""
 echo "********************************************************************"
@@ -218,6 +218,8 @@ export MODEL=rna004_130bps_hac@v5.2.0
 export OPTS_GUPPY="--estimate_poly_a"
 export OPTS_EEL="--estimate_poly_a"
 test/dorado_new/test.sh &> rna.log || die "test failed. See rna.log for details"
+echo ""
+echo "********************************************************************"
 
 echo "RNA004 RNA - rna_rp4_130bps_modbases_m6a_drach_sup.cfg"
 echo "Not yet implemented :("

@@ -221,7 +221,7 @@ def submit_reads(args, client, sk, batch):
                             sampling_rate=read['sampling_rate'],
                             mux=read['start_mux'],
                             channel=int(read["channel_number"]),
-                            run_id=read_store[read_id]["header_array"]["run_id"],
+                            run_id=read_store[read_id]["header_array"]["protocol_run_id"],
                             duration=read['len_raw_signal'],
                             end_reason=read["aux_data"]["end_reason_labels"][read['end_reason']],
                         ))

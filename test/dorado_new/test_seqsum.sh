@@ -71,7 +71,7 @@ execute_test() {
 
 }
 
-FIELDS="read_id,channel,mux"
+FIELDS="read_id,run_id,channel,mux"
 FIELDS_APPROX="read_id"
 
 CURRENT_GUPPY=$(grep "ont-pybasecall-client-lib" requirements.txt | cut -d "=" -f 3)

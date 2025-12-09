@@ -185,13 +185,17 @@ def main():
         # print("get_server_internal_state():", client.get_server_internal_state(address, 10))
         server_info = client.get_server_information(address, 10)
         gpus = json.loads(server_info[0])["CUDA Devices"]
+        print(type(gpus))
+        print(gpus)
         gpu_set = set()
+        num_devices = gpus["num devices"]
         print("GPU(s):")
-        for device in gpus:
-            gpu_set.add(device["name"])
-            print(device["name"])
+        for n in range(num_devices):
+            g = gpus["device_{}".format(n)]["name"]
+            print(g)
+            gpu_set.add(g)
         gpu_name = ",".join(gpu_set)
-        print("GPU:", gpu_name)
+        print("Unique GPU(s):", gpu_name)
         # print(client.get_barcode_kits("127.0.0.1:{}".format(args.port), 10))
         # print(client.get_protocol_version())
         # print(client.get_software_version())

@@ -2,7 +2,7 @@ import setuptools
 from os import path
 
 PKG_NAME = "buttery-eel"
-MOD_NAME = "src"
+MOD_NAME = "buttery_eel"
 
 # add readme to long description as that's what pypi sees
 with open("README.md", "r") as f:
@@ -11,7 +11,7 @@ with open("README.md", "r") as f:
 
 # get version from file rather than here so change isn't in this file
 __version__ = ""
-exec(open("{}/_version.py".format(MOD_NAME)).read())
+exec(open("src/{}/_version.py".format(MOD_NAME)).read())
 
 # create package install list
 # User can set version of ont-pyguppy-client-lib to match guppy version
@@ -28,11 +28,12 @@ setuptools.setup(
     description="Slow5 guppy/dorado basecall wrapper",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(where="src"),
+    package_dir={"": "src"},
     python_requires=">=3.9",
     install_requires=install_requires,
     setup_requires=["numpy"],
-    entry_points={"console_scripts":["buttery-eel=src.buttery_eel:main"],},
+    entry_points={"console_scripts":["buttery-eel=buttery_eel.buttery_eel:main"],},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

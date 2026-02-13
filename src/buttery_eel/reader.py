@@ -166,12 +166,18 @@ def read_worker(args, iq, total_samples):
                     elif ext == "sam":
                         if line[0] == "@":
                             continue
+                        # split read, so get the parent ID not the read ID
                         if "pi:Z:" in line:
                             p_IDs.add(line.split("pi:Z:")[1].split()[0])
                             file_reads += 1
+                        # not a split read, so just get the read_id
                         else:
-                            print("WARN: sam read does not contain pi:Z:, sam file malformed")
-                            error_count += 1
+                            p_IDs.add(line.split("\t")[0])
+                            file_reads += 1
+                            print("RESUME: regular sam read_id:", line.split("\t")[0])
+                        # else:
+                        #     print("WARN: sam read does not contain pi:Z:, sam file malformed")
+                        #     error_count += 1
                     else:
                         print("ERROR: filetype not recognised and parsed to read_worker, contact developers")
                         sys.exit(1)
